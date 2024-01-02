@@ -24,7 +24,8 @@ import tifffile as tif
 
 import numpy as np
 #from av import VideoFrame
-from imjoy_rpc.hypha import connect_to_server
+from imjoy_rpc.hypha import connect_to_server, register_rtc_service
+#from imjoy_rpc.hypha.sync import register_rtc_service
 #import aiortc
 from aiortc import MediaStreamTrack, RTCPeerConnection, RTCSessionDescription, RTCConfiguration
 from PyQt5.QtCore import QThread, pyqtSignal
@@ -293,8 +294,17 @@ class HyphaService(SquidController):
 
 
 
+    def on_init(self, peer_connection):
+        @peer_connection.on("track")
+        def on_track(track):
+            self.__logger.debug(f"Track {track.kind} received")
+            peer_connection.addTrack(
+                VideoTransformTrack(detector=self.detector)
+            )
+            @track.on("ended")
+            def on_ended():
+                self.__logger.debug(f"Track {track.kind} ended")
 
-    
     def move_distance(self,x,y,z):
         self.navigationController.move_x(x)
         self.navigationController.move_y(y)
@@ -310,7 +320,7 @@ class HyphaService(SquidController):
 
 
     async def start_server(self,server_url="https://ai.imjoy.io/",workspace=None, token=None):
-
+        client_id = self.service_id + "-client"
         server = await connect_to_server(
             {
                 "server_url": server_url,
@@ -334,6 +344,23 @@ class HyphaService(SquidController):
 
             }
         )
+
+        # coturn = server.get_service("coturn")
+        # ice_servers = await coturn.get_rtc_ice_servers()
+        await register_rtc_service(
+            server,
+            service_id=self.service_id,
+            config={
+                "visibility": "public",
+                #"ice_servers": ice_servers,
+                "on_init": self.on_init,
+            },
+        )
+        print(
+            f"Service (client_id={client_id}, service_id={self.service_id}) started successfully, available at https://ai.imjoy.io/{server.config.workspace}/services"
+        )
+        print(f"You can access the webrtc stream at https://oeway.github.io/webrtc-hypha-demo/?service_id={self.service_id}")
+
 
 if __name__ == "__main__":
     squid = HyphaService()
