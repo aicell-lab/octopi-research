@@ -4,7 +4,7 @@ import control.camera as camera
 import control.core as core
 import control.microcontroller as microcontroller
 from control._def import *
-
+import logging
 import control.serial_peripherals as serial_peripherals
 
 if SUPPORT_LASER_AUTOFOCUS:
@@ -24,7 +24,7 @@ import tifffile as tif
 
 import numpy as np
 #from av import VideoFrame
-from imjoy_rpc.hypha import connect_to_server, register_rtc_service
+from imjoy_rpc.hypha import login, connect_to_server, register_rtc_service
 #from imjoy_rpc.hypha.sync import register_rtc_service
 #import aiortc
 from aiortc import MediaStreamTrack, RTCPeerConnection, RTCSessionDescription, RTCConfiguration
@@ -236,7 +236,10 @@ class AsyncioThread(QThread):
         asyncio.set_event_loop(self.loop)
         self.started.emit()
         self.loop.run_forever()
-        
+
+
+squidController= SquidController(is_simulation=True)
+navigationController = squidController.navigationController
 
 class VideoTransformTrack(MediaStreamTrack):
     """
@@ -245,126 +248,115 @@ class VideoTransformTrack(MediaStreamTrack):
 
     kind = "video"
 
-    def __init__(self, detector):
+    def __init__(self):
         super().__init__()  # don't forget this!
         self.count = 0
-        self.detector = detector
 
     async def recv(self):
         # frame = await self.track.recv()
-        img = self.detector.getLatestFrame()
-        if img is not None:
-            if len(img.shape)<3:
-                img = np.array((img,img,img))
-                img = np.transpose(img, (1,2,0))
-            img = img/np.max(img)
-            img = img*255
-            img = np.uint8(img)
-            #img = np.random.randint(0, 155, (150, 300, 3)).astype('uint8')
-        else:
-            img = np.random.randint(0, 155, (150, 300, 3)).astype('uint8')
-        from skimage import data, color
-        from skimage.transform import rescale, resize, downscale_local_mean
-        img = resize(img, (img.shape[0] // 4, img.shape[1] // 4, img.shape[2]),
-                            anti_aliasing=True)
-        img = np.uint8(img*255)
+        img = np.random.randint(0, 155, (150, 300, 3)).astype('uint8')
         new_frame = VideoFrame.from_ndarray(img, format="bgr24")
         new_frame.pts = self.count # frame.pts
         self.count+=1
         new_frame.time_base = fractions.Fraction(1, 1000)
         return new_frame
 
-class HyphaService(SquidController):
-    def __init__(self,*args, **kwargs):
-        super().__init__(*args, **kwargs)
-        
-        self.frame = np.zeros((150, 300, 3)).astype('uint8')
-        self.asyncio_thread = None
+async def start_service(service_id, workspace=None, token=None):
+    client_id = service_id + "-client"
+    token = await login({"server_url": "https://ai.imjoy.io",})
 
-        # rtc-related
-        self.pcs = set()
-        host = "0.0.0.0"
-        port = 8080
-
-        self.ssl_context = None
-
-        # TODO: Create ID based on user input
-        self.service_id = "Squid"
-        self.server_url = "https://ai.imjoy.io/"
-
-
-
-    def on_init(self, peer_connection):
+    print(f"Starting service...")
+    server = await connect_to_server(
+        {
+            "client_id": client_id,
+            "server_url": "https://ai.imjoy.io",
+            "workspace": workspace,
+            "token": token,
+        }
+    )
+    
+    # print("Workspace: ", workspace, "Token:", await server.generate_token({"expires_in": 3600*24*100}))
+    
+    async def on_init(peer_connection):
         @peer_connection.on("track")
         def on_track(track):
-            self.__logger.debug(f"Track {track.kind} received")
+            print(f"Track {track.kind} received")
             peer_connection.addTrack(
-                VideoTransformTrack(detector=self.detector)
+                VideoTransformTrack()
             )
             @track.on("ended")
-            def on_ended():
-                self.__logger.debug(f"Track {track.kind} ended")
+            async def on_ended():
+                print(f"Track {track.kind} ended")
 
-    def move_distance(self,x,y,z):
-        self.navigationController.move_x(x)
-        self.navigationController.move_y(y)
-        self.navigationController.move_z(z)
+
+
+    def move_distance(x,y,z):
+        navigationController.move_x(x)
+        navigationController.move_y(y)
+        navigationController.move_z(z)
         print(f'The stage moved ({x},{y},{z})mm through x,y,z axis')
         # TODO: Don't forget
-
-    def move_stage_to(self,x,y,z):
-        self.navigationController.move_x_to(x)
-        self.navigationController.move_y_to(y)
-        self.navigationController.move_z_to(z)
+    
+    def move(value, axis, is_absolute, is_blocking, context=None):
+        print("move: ", value, axis, is_absolute, is_blocking)
+    
+    def move_stage_to(x,y,z):
+        navigationController.move_x_to(x)
+        navigationController.move_y_to(y)
+        navigationController.move_z_to(z)
         print(f'The stage moved to position ({x},{y},{z})mm')
 
-
-    async def start_server(self,server_url="https://ai.imjoy.io/",workspace=None, token=None):
-        client_id = self.service_id + "-client"
-        server = await connect_to_server(
-            {
-                "server_url": server_url,
-                "workspace": workspace, 
-                "token": token
-                }
-        )
-
-        server.register_service(
-            {
-                "id": "squid-control",
-                "name": "Squid Microscope",
-                "description": "Squid Microscope Interface: Precise control over Squid microscope.",
-                "config":{
-                    "visibility": "public",
-                    "run_in_executor": True,
-                    "require_context": True,
-                },
-                "type": "microscope",
-                "move": self.move_distance
-
-            }
-        )
-
-        # coturn = server.get_service("coturn")
-        # ice_servers = await coturn.get_rtc_ice_servers()
-        await register_rtc_service(
-            server,
-            service_id=self.service_id,
-            config={
+        
+    await server.register_service(
+        {
+            "id": "microscope-control",
+            "config":{
                 "visibility": "public",
-                #"ice_servers": ice_servers,
-                "on_init": self.on_init,
+                "run_in_executor": True,
+                "require_context": True,   
             },
-        )
-        print(
-            f"Service (client_id={client_id}, service_id={self.service_id}) started successfully, available at https://ai.imjoy.io/{server.config.workspace}/services"
-        )
-        print(f"You can access the webrtc stream at https://oeway.github.io/webrtc-hypha-demo/?service_id={self.service_id}")
+            "type": "echo",
+            "move": move_distance
+            
+        }
+    )
+    
+    await register_rtc_service(
+        server,
+        service_id=service_id,
+        config={
+            "visibility": "public",
+            # "ice_servers": ice_servers,
+            "on_init": on_init,
+        },
+    )
+    
+    # svc = await get_rtc_service(server, service_id)
+    # mc = await svc.get_service("microscope-control")
+    # await mc.move("left")
 
+    print(
+        f"Service (client_id={client_id}, service_id={service_id}) started successfully, available at https://ai.imjoy.io/{server.config.workspace}/services"
+    )
+    print(f"You can access the webrtc stream at https://oeway.github.io/webrtc-hypha-demo/?service_id={service_id}")
 
 if __name__ == "__main__":
-    squid = HyphaService()
-    server_url = "https://ai.imjoy.io"
+    parser = argparse.ArgumentParser(
+        description="WebRTC demo for video streaming"
+    )
+    parser.add_argument("--service-id", type=str, default="aiortc-demo", help="The service id")
+    parser.add_argument("--verbose", "-v", action="count")
+    args = parser.parse_args()
+
+    if args.verbose:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
+
     loop = asyncio.get_event_loop()
-    loop.create_task(squid.start_server(server_url))
+    loop.create_task(start_service(
+        args.service_id,
+        workspace=None,
+        token=None,
+    ))
     loop.run_forever()
