@@ -185,7 +185,7 @@ class SquidController:
             self.streamHandler_focus_camera = core.StreamHandler()
             self.liveController_focus_camera = core.LiveController(self.camera_focus,self.microcontroller,self.configurationManager_focus_camera,control_illumination=False,for_displacement_measurement=True)
             self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates,parent=self)
-            #self.imageDisplayWindow_focus = core.ImageDisplayWindow(draw_crosshairs=True)
+            
             self.displacementMeasurementController = core_displacement_measurement.DisplacementMeasurementController()
             self.laserAutofocusController = core.LaserAutofocusController(self.microcontroller,self.camera_focus,self.liveController_focus_camera,self.navigationController,has_two_interfaces=HAS_TWO_INTERFACES,use_glass_top=USE_GLASS_TOP)
 
@@ -254,11 +254,19 @@ class VideoTransformTrack(MediaStreamTrack):
 
     async def recv(self):
         # frame = await self.track.recv()
-        img = np.random.randint(0, 155, (150, 300, 3)).astype('uint8')
+        # Create a 3-dimensional array with random values for each color channel
+        img = np.random.randint(255, size=(2000, 2000, 3), dtype=np.uint8)
+
+        # Modify a square region in the image
+        img[901:1100, 901:1100, :] = 200  # Apply the modification to all color channels
+
+        # Create the video frame
         new_frame = VideoFrame.from_ndarray(img, format="bgr24")
+
         new_frame.pts = self.count # frame.pts
         self.count+=1
         new_frame.time_base = fractions.Fraction(1, 1000)
+        await asyncio.sleep(1)
         return new_frame
 
 async def start_service(service_id, workspace=None, token=None):
@@ -290,17 +298,14 @@ async def start_service(service_id, workspace=None, token=None):
 
 
 
-    def move_distance(x,y,z):
+    def move_distance(x,y,z, context=None):
         navigationController.move_x(x)
         navigationController.move_y(y)
         navigationController.move_z(z)
         print(f'The stage moved ({x},{y},{z})mm through x,y,z axis')
-        # TODO: Don't forget
+        
     
-    def move(value, axis, is_absolute, is_blocking, context=None):
-        print("move: ", value, axis, is_absolute, is_blocking)
-    
-    def move_stage_to(x,y,z):
+    def move_stage_to(x,y,z, context=None):
         navigationController.move_x_to(x)
         navigationController.move_y_to(y)
         navigationController.move_z_to(z)
@@ -338,13 +343,13 @@ async def start_service(service_id, workspace=None, token=None):
     print(
         f"Service (client_id={client_id}, service_id={service_id}) started successfully, available at https://ai.imjoy.io/{server.config.workspace}/services"
     )
-    print(f"You can access the webrtc stream at https://oeway.github.io/webrtc-hypha-demo/?service_id={service_id}")
+    print(f"You can access the webrtc stream at https://aicell-lab.github.io/reef-webrtc/?service_id={service_id}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="WebRTC demo for video streaming"
     )
-    parser.add_argument("--service-id", type=str, default="aiortc-demo", help="The service id")
+    parser.add_argument("--service-id", type=str, default="squid-control", help="The service id")
     parser.add_argument("--verbose", "-v", action="count")
     args = parser.parse_args()
 
