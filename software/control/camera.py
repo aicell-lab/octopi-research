@@ -296,7 +296,7 @@ class Camera(object):
         if self.is_streaming:
             self.camera.TriggerSoftware.send_command()
         else:
-        	print('trigger not sent - camera is not streaming')
+            print('trigger not sent - camera is not streaming')
 
     def read_frame(self):
         raw_image = self.camera.data_stream[self.device_index].get_image()
