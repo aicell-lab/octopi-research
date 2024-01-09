@@ -13,8 +13,8 @@ if SUPPORT_LASER_AUTOFOCUS:
 import pyqtgraph.dockarea as dock
 import time
 
-
-
+import cv2
+import threading
 import argparse
 import asyncio
 import os
@@ -104,6 +104,7 @@ class SquidController:
         #self.imageDisplay = core.ImageDisplay()
         #self.navigationViewer = core.NavigationViewer(sample=str(WELLPLATE_FORMAT)+' well plate')
 
+        self.multiPointWorker = core.MultiPointWorker(self.multipointController)
         # retract the object
         self.navigationController.home_z()
         # wait for the operation to finish
@@ -194,6 +195,31 @@ class SquidController:
             self.camera_focus.set_callback(self.streamHandler_focus_camera.on_new_frame)
             self.camera_focus.enable_callback()
             self.camera_focus.start_streaming()
+        
+        
+    def well_plate_scan(self):
+        toggle_acquisition
+        time.sleep(1)
+
+    def toggle_acquisition(self):
+            self.setEnabled_all(False)
+            self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
+            self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
+            # set parameters
+            self.multipointController.set_deltaX(self.entry_deltaX.value())
+            self.multipointController.set_deltaY(self.entry_deltaY.value())
+            self.multipointController.set_deltaZ(self.entry_deltaZ.value())
+            self.multipointController.set_deltat(self.entry_dt.value())
+            self.multipointController.set_NX(self.entry_NX.value())
+            self.multipointController.set_NY(self.entry_NY.value())
+            self.multipointController.set_NZ(self.entry_NZ.value())
+            self.multipointController.set_Nt(self.entry_Nt.value())
+            self.multipointController.set_af_flag(self.checkbox_withAutofocus.isChecked())
+            self.multipointController.set_reflection_af_flag(self.checkbox_withReflectionAutofocus.isChecked())
+            self.multipointController.set_base_path(self.lineEdit_savingDir.text())
+            self.multipointController.run_acquisition()
+
+            self.setEnabled_all(False)
 
 
     def closeEvent(self, event):
@@ -239,7 +265,8 @@ class AsyncioThread(QThread):
 
 
 squidController= SquidController(is_simulation=True)
-navigationController = squidController.navigationController
+#navigationController = squidController.navigationController
+
 
 class VideoTransformTrack(MediaStreamTrack):
     """
@@ -251,17 +278,23 @@ class VideoTransformTrack(MediaStreamTrack):
     def __init__(self):
         super().__init__()  # don't forget this!
         self.count = 0
+    def gray_to_rgb(self,gray_img):
+        # Add a third dimension to the gray image
+        if len(gray_img.shape) == 2:
+            gray_img = gray_img[:, :, np.newaxis]
+
+        # Convert the gray image to a 3-channel RGB image
+        rgb_img = np.repeat(gray_img, 3, axis=2)
+        return rgb_img
 
     async def recv(self):
-        # frame = await self.track.recv()
-        # Create a 3-dimensional array with random values for each color channel
-        img = np.random.randint(255, size=(2000, 2000, 3), dtype=np.uint8)
+        squidController.camera.send_trigger()
+        gray_img = squidController.camera.read_frame()
+        rgb_img = self.gray_to_rgb(gray_img)
 
-        # Modify a square region in the image
-        img[901:1100, 901:1100, :] = 200  # Apply the modification to all color channels
 
         # Create the video frame
-        new_frame = VideoFrame.from_ndarray(img, format="bgr24")
+        new_frame = VideoFrame.from_ndarray(rgb_img, format="bgr24")
 
         new_frame.pts = self.count # frame.pts
         self.count+=1
@@ -299,16 +332,17 @@ async def start_service(service_id, workspace=None, token=None):
 
 
     def move_distance(x,y,z, context=None):
-        navigationController.move_x(x)
-        navigationController.move_y(y)
-        navigationController.move_z(z)
+        squidController.navigationController.move_x(x)
+        squidController.well_plate_scan()
+        squidController.navigationController.move_y(y)
+        squidController.navigationController.move_z(z)
         print(f'The stage moved ({x},{y},{z})mm through x,y,z axis')
         
     
     def move_stage_to(x,y,z, context=None):
-        navigationController.move_x_to(x)
-        navigationController.move_y_to(y)
-        navigationController.move_z_to(z)
+        squidController.navigationController.move_x_to(x)
+        squidController.navigationController.move_y_to(y)
+        squidController.navigationController.move_z_to(z)
         print(f'The stage moved to position ({x},{y},{z})mm')
 
         

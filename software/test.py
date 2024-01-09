@@ -1,7 +1,7 @@
 import os 
 # app specific libraries
 import control.camera as camera
-import control.core as core
+import control.core_reef as core
 import control.microcontroller as microcontroller
 from control._def import *
 import logging
@@ -196,7 +196,7 @@ class SquidController:
             self.camera_focus.enable_callback()
             self.camera_focus.start_streaming()
 
-        self.channel_names = ['BF LED matrix full','Fluorescence 405 nm Ex','Fluorescence 638 nm Ex']
+        self.channel_names = ['BF LED matrix full','Fluorescence 405 nm Ex']
     
     def get_location_list(self, start_x=14.3, start_y=11.36, distance=9, rows=8, cols=12):
         # Initialize parameters, default values are for 96-well plate
@@ -212,15 +212,39 @@ class SquidController:
                 location_list = np.append(location_list, [[x, y, z]], axis=0)
         return location_list
 
+
+
+
     def plate_scan(self,action_ID='01'):
         # start the acquisition loop
-        location_list = self.get_location_list()
+        location_list = self.get_location_list(rows=3,cols=3)
+        print(location_list)
         self.multipointController.set_base_path(DEFAULT_SAVING_PATH)
         self.multipointController.set_selected_configurations(self.channel_names)
         self.multipointController.start_new_experiment(action_ID)
-        self.multipointController.run_acquisition(location_list=location_list)
         
+        self.multipointController.run_acquisition_reef(location_list=location_list)
         
+    def close(self):
+        # move the objective to a defined position upon exit
+        self.navigationController.move_x(0.1) # temporary bug fix - move_x needs to be called before move_x_to if the stage has been moved by the joystick
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+        self.navigationController.move_x_to(30)
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+        self.navigationController.move_y(0.1) # temporary bug fix - move_y needs to be called before move_y_to if the stage has been moved by the joystick
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+        self.navigationController.move_y_to(30)
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+
+        self.liveController.stop_live()
+        self.camera.close()
+        if SUPPORT_LASER_AUTOFOCUS:
+            self.camera_focus.close()
+        self.microcontroller.close()
 
 
 if __name__ == "__main__":
@@ -231,6 +255,7 @@ if __name__ == "__main__":
     #squid = SquidController(is_simulation = args.simulation)
     squid = SquidController(is_simulation = True)
     squid.plate_scan()
+    squid.close()
 
 
 	
