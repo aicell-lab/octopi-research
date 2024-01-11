@@ -8,7 +8,7 @@ from qtpy.QtCore import *
 from qtpy.QtWidgets import *
 from qtpy.QtGui import *
 
-from control.processing_handler import ProcessingHandler
+#from control.processing_handler import ProcessingHandler
 from control.stitcher import Stitcher, default_image_reader
 
 import control.utils as utils
@@ -321,53 +321,6 @@ class ImageSaver_Tracking(QObject):
         self.thread.join()
 
 
-'''
-class ImageSaver_MultiPointAcquisition(QObject):
-'''
-
-class ImageDisplay(QObject):
-
-    image_to_display = Signal(np.ndarray)
-
-    def __init__(self):
-        QObject.__init__(self)
-        self.queue = Queue(10) # max 10 items in the queue
-        self.image_lock = Lock()
-        self.stop_signal_received = False
-        self.thread = Thread(target=self.process_queue)
-        self.thread.start()        
-        
-    def process_queue(self):
-        while True:
-            # stop the thread if stop signal is received
-            if self.stop_signal_received:
-                return
-            # process the queue
-            try:
-                [image,frame_ID,timestamp] = self.queue.get(timeout=0.1)
-                self.image_lock.acquire(True)
-                self.image_to_display.emit(image)
-                self.image_lock.release()
-                self.queue.task_done()
-            except:
-                pass
-
-    # def enqueue(self,image,frame_ID,timestamp):
-    def enqueue(self,image):
-        try:
-            self.queue.put_nowait([image,None,None])
-            # when using self.queue.put(str_) instead of try + nowait, program can be slowed down despite multithreading because of the block and the GIL
-            pass
-        except:
-            print('imageDisplay queue is full, image discarded')
-
-    def emit_directly(self,image):
-        self.image_to_display.emit(image)
-
-    def close(self):
-        self.queue.join()
-        self.stop_signal_received = True
-        self.thread.join()
 
 class Configuration:
     def __init__(self,mode_id=None,name=None,camera_sn=None,exposure_time=None,analog_gain=None,illumination_source=None,illumination_intensity=None, z_offset=None, pixel_format=None, _pixel_format_options=None):
@@ -1054,8 +1007,7 @@ class AutofocusWorker(QObject):
                 self.liveController.turn_off_illumination()
             image = utils.crop_image(image,self.crop_width,self.crop_height)
             image = utils.rotate_and_flip_image(image,rotate_image_angle=self.camera.rotate_image_angle,flip_image=self.camera.flip_image)
-            self.image_to_display.emit(image)
-            QApplication.processEvents()
+            
             timestamp_0 = time.time()
             focus_measure = utils.calculate_focus_measure(image,FOCUS_MEASURE_OPERATOR)
             timestamp_1 = time.time()
@@ -1097,9 +1049,9 @@ class AutoFocusController(QObject):
         self.camera = camera
         self.navigationController = navigationController
         self.liveController = liveController
-        self.N = None
+        self.N = 10
         self.deltaZ = None
-        self.deltaZ_usteps = None
+        self.deltaZ_usteps = 1.524
         self.crop_width = AF.CROP_WIDTH
         self.crop_height = AF.CROP_HEIGHT
         self.autofocus_in_progress = False
@@ -1142,21 +1094,14 @@ class AutoFocusController(QObject):
                 print('*** autofocus threaded manually stopped ***')
         except:
             pass
-        self.thread = QThread()
+        
         # create a worker object
         self.autofocusWorker = AutofocusWorker(self)
-        # move the worker to the thread
-        self.autofocusWorker.moveToThread(self.thread)
+
         # connect signals and slots
-        self.thread.started.connect(self.autofocusWorker.run)
-        self.autofocusWorker.finished.connect(self._on_autofocus_completed)
-        self.autofocusWorker.finished.connect(self.autofocusWorker.deleteLater)
-        self.autofocusWorker.finished.connect(self.thread.quit)
-        self.autofocusWorker.image_to_display.connect(self.slot_image_to_display)
-        # self.thread.finished.connect(self.thread.deleteLater)
-        self.thread.finished.connect(self.thread.quit)
-        # start the thread
-        self.thread.start()
+        self.autofocusWorker.run()
+        self._on_autofocus_completed()
+        self.autofocusWorker.deleteLater()
         
     def _on_autofocus_completed(self):
         # re-enable callback
@@ -1201,7 +1146,7 @@ class MultiPointWorker(QObject):
 
         self.signal_update_stats.connect(self.update_stats)
         self.start_time = 0
-        self.processingHandler = multiPointController.processingHandler
+        #self.processingHandler = multiPointController.processingHandler
         self.camera = self.multiPointController.camera
         self.microcontroller = self.multiPointController.microcontroller
         self.usb_spectrometer = self.multiPointController.usb_spectrometer
@@ -1302,8 +1247,8 @@ class MultiPointWorker(QObject):
                     if self.multiPointController.abort_acqusition_requested:
                         break
                     time.sleep(0.05)
-        self.processingHandler.processing_queue.join()
-        self.processingHandler.upload_queue.join()
+        # self.processingHandler.processing_queue.join()
+        # self.processingHandler.upload_queue.join()
         elapsed_time = time.perf_counter_ns()-self.start_time
         print("Time taken for acquisition/processing: "+str(elapsed_time/10**9))
         
@@ -1694,7 +1639,7 @@ class MultiPointController(QObject):
         self.camera = camera
         self.stitcher_image_reader = stitcher_image_reader
         self.tile_stitchers = {}
-        self.processingHandler = ProcessingHandler()
+        #self.processingHandler = ProcessingHandler()
         self.microcontroller = navigationController.microcontroller # to move to gui for transparency
         self.navigationController = navigationController
         self.liveController = liveController
@@ -1848,8 +1793,8 @@ class MultiPointController(QObject):
         # run the acquisition
         self.timestamp_acquisition_started = time.time()
         # create a worker object
-        self.processingHandler.start_processing()
-        self.processingHandler.start_uploading()
+        #self.processingHandler.start_processing()
+        #self.processingHandler.start_uploading()
         self.multiPointWorker = MultiPointWorker(self)
         worker_thread = threading.Thread(target=self.multiPointWorker.run)
         # Start the thread
@@ -1877,7 +1822,7 @@ class MultiPointController(QObject):
                 self.usb_spectrometer.resume_streaming()
         
         # emit the acquisition finished signal to enable the UI
-        self.processingHandler.end_processing()
+        #self.processingHandler.end_processing()
         if self.parent is not None:
             try:
                 self.parent.dataHandler.set_number_of_images_per_page(self.old_images_per_page)
@@ -1890,792 +1835,6 @@ class MultiPointController(QObject):
 
     def request_abort_aquisition(self):
         self.abort_acqusition_requested = True
-
-    def slot_detection_stats(self, stats):
-        self.detection_stats.emit(stats)
-
-    def slot_image_to_display(self,image):
-        self.image_to_display.emit(image)
-
-    def slot_spectrum_to_display(self,data):
-        self.spectrum_to_display.emit(data)
-
-    def slot_image_to_display_multi(self,image,illumination_source):
-        self.image_to_display_multi.emit(image,illumination_source)
-
-    def slot_current_configuration(self,configuration):
-        self.signal_current_configuration.emit(configuration)
-
-    def slot_register_current_fov(self,x_mm,y_mm):
-        self.signal_register_current_fov.emit(x_mm,y_mm)
-
-
-class TrackingController(QObject):
-
-    signal_tracking_stopped = Signal()
-    image_to_display = Signal(np.ndarray)
-    image_to_display_multi = Signal(np.ndarray,int)
-    signal_current_configuration = Signal(Configuration)
-
-    def __init__(self,camera,microcontroller,navigationController,configurationManager,liveController,autofocusController,imageDisplayWindow):
-        QObject.__init__(self)
-        self.camera = camera
-        self.microcontroller = microcontroller
-        self.navigationController = navigationController
-        self.configurationManager = configurationManager
-        self.liveController = liveController
-        self.autofocusController = autofocusController
-        self.imageDisplayWindow = imageDisplayWindow
-        self.tracker = tracking.Tracker_Image()
-        # self.tracker_z = tracking.Tracker_Z()
-        # self.pid_controller_x = tracking.PID_Controller()
-        # self.pid_controller_y = tracking.PID_Controller()
-        # self.pid_controller_z = tracking.PID_Controller()
-
-        self.tracking_time_interval_s = 0
-
-        self.crop_width = Acquisition.CROP_WIDTH
-        self.crop_height = Acquisition.CROP_HEIGHT
-        self.display_resolution_scaling = Acquisition.IMAGE_DISPLAY_SCALING_FACTOR
-        self.counter = 0
-        self.experiment_ID = None
-        self.base_path = None
-        self.selected_configurations = []
-
-        self.flag_stage_tracking_enabled = True
-        self.flag_AF_enabled = False
-        self.flag_save_image = False
-        self.flag_stop_tracking_requested = False
-
-        self.pixel_size_um = None
-        self.objective = None
-
-    def start_tracking(self):
-        
-        # save pre-tracking configuration
-        print('start tracking')
-        self.configuration_before_running_tracking = self.liveController.currentConfiguration
-        
-        # stop live
-        if self.liveController.is_live:
-            self.was_live_before_tracking = True
-            self.liveController.stop_live() # @@@ to do: also uncheck the live button
-        else:
-            self.was_live_before_tracking = False
-
-        # disable callback
-        if self.camera.callback_is_enabled:
-            self.camera_callback_was_enabled_before_tracking = True
-            self.camera.disable_callback()
-        else:
-            self.camera_callback_was_enabled_before_tracking = False
-
-        # hide roi selector
-        self.imageDisplayWindow.hide_ROI_selector()
-
-        # run tracking
-        self.flag_stop_tracking_requested = False
-        # create a QThread object
-        try:
-            if self.thread.isRunning():
-                print('*** previous tracking thread is still running ***')
-                self.thread.terminate()
-                self.thread.wait()
-                print('*** previous tracking threaded manually stopped ***')
-        except:
-            pass
-        self.thread = QThread()
-        # create a worker object
-        self.trackingWorker = TrackingWorker(self)
-        # move the worker to the thread
-        self.trackingWorker.moveToThread(self.thread)
-        # connect signals and slots
-        self.thread.started.connect(self.trackingWorker.run)
-        self.trackingWorker.finished.connect(self._on_tracking_stopped)
-        self.trackingWorker.finished.connect(self.trackingWorker.deleteLater)
-        self.trackingWorker.finished.connect(self.thread.quit)
-        self.trackingWorker.image_to_display.connect(self.slot_image_to_display)
-        self.trackingWorker.image_to_display_multi.connect(self.slot_image_to_display_multi)
-        self.trackingWorker.signal_current_configuration.connect(self.slot_current_configuration,type=Qt.BlockingQueuedConnection)
-        # self.thread.finished.connect(self.thread.deleteLater)
-        self.thread.finished.connect(self.thread.quit)
-        # start the thread
-        self.thread.start()
-
-    def _on_tracking_stopped(self):
-
-        # restore the previous selected mode
-        self.signal_current_configuration.emit(self.configuration_before_running_tracking)
-
-        # re-enable callback
-        if self.camera_callback_was_enabled_before_tracking:
-            self.camera.enable_callback()
-            self.camera_callback_was_enabled_before_tracking = False
-        
-        # re-enable live if it's previously on
-        if self.was_live_before_tracking:
-            self.liveController.start_live()
-
-        # show ROI selector
-        self.imageDisplayWindow.show_ROI_selector()
-        
-        # emit the acquisition finished signal to enable the UI
-        self.signal_tracking_stopped.emit()
-        QApplication.processEvents()
-
-    def start_new_experiment(self,experiment_ID): # @@@ to do: change name to prepare_folder_for_new_experiment
-        # generate unique experiment ID
-        self.experiment_ID = experiment_ID + '_' + datetime.now().strftime('%Y-%m-%d_%H-%M-%-S.%f')
-        self.recording_start_time = time.time()
-        # create a new folder
-        try:
-            os.mkdir(os.path.join(self.base_path,self.experiment_ID))
-            self.configurationManager.write_configuration(os.path.join(self.base_path,self.experiment_ID)+"/configurations.xml") # save the configuration for the experiment
-        except:
-            print('error in making a new folder')
-            pass
-
-    def set_selected_configurations(self, selected_configurations_name):
-        self.selected_configurations = []
-        for configuration_name in selected_configurations_name:
-            self.selected_configurations.append(next((config for config in self.configurationManager.configurations if config.name == configuration_name)))
-
-    def toggle_stage_tracking(self,state):
-        self.flag_stage_tracking_enabled = state > 0
-        print('set stage tracking enabled to ' + str(self.flag_stage_tracking_enabled))
-
-    def toggel_enable_af(self,state):
-        self.flag_AF_enabled = state > 0
-        print('set af enabled to ' + str(self.flag_AF_enabled))
-
-    def toggel_save_images(self,state):
-        self.flag_save_image = state > 0
-        print('set save images to ' + str(self.flag_save_image))
-
-    def set_base_path(self,path):
-        self.base_path = path
-
-    def stop_tracking(self):
-        self.flag_stop_tracking_requested = True
-        print('stop tracking requested')
-
-    def slot_image_to_display(self,image):
-        self.image_to_display.emit(image)
-
-    def slot_image_to_display_multi(self,image,illumination_source):
-        self.image_to_display_multi.emit(image,illumination_source)
-
-    def slot_current_configuration(self,configuration):
-        self.signal_current_configuration.emit(configuration)
-
-    def update_pixel_size(self, pixel_size_um):
-        self.pixel_size_um = pixel_size_um
-
-    def update_tracker_selection(self,tracker_str):
-        self.tracker.update_tracker_type(tracker_str)
-
-    def set_tracking_time_interval(self,time_interval):
-        self.tracking_time_interval_s = time_interval
-
-    def update_image_resizing_factor(self,image_resizing_factor):
-        self.image_resizing_factor = image_resizing_factor
-        print('update tracking image resizing factor to ' + str(self.image_resizing_factor))
-        self.pixel_size_um_scaled = self.pixel_size_um/self.image_resizing_factor
-
-    # PID-based tracking
-    '''
-    def on_new_frame(self,image,frame_ID,timestamp):
-        # initialize the tracker when a new track is started
-        if self.tracking_frame_counter == 0:
-            # initialize the tracker
-            # initialize the PID controller
-            pass
-
-        # crop the image, resize the image 
-        # [to fill]
-
-        # get the location
-        [x,y] = self.tracker_xy.track(image)
-        z = self.track_z.track(image)
-
-        # get motion commands
-        dx = self.pid_controller_x.get_actuation(x)
-        dy = self.pid_controller_y.get_actuation(y)
-        dz = self.pid_controller_z.get_actuation(z)
-
-        # read current location from the microcontroller
-        current_stage_position = self.microcontroller.read_received_packet()
-
-        # save the coordinate information (possibly enqueue image for saving here to if a separate ImageSaver object is being used) before the next movement
-        # [to fill]
-
-        # generate motion commands
-        motion_commands = self.generate_motion_commands(self,dx,dy,dz)
-
-        # send motion commands
-        self.microcontroller.send_command(motion_commands)
-
-    def start_a_new_track(self):
-        self.tracking_frame_counter = 0
-    '''
-
-class TrackingWorker(QObject):
-
-    finished = Signal()
-    image_to_display = Signal(np.ndarray)
-    image_to_display_multi = Signal(np.ndarray,int)
-    signal_current_configuration = Signal(Configuration)
-
-    def __init__(self,trackingController):
-        QObject.__init__(self)
-        self.trackingController = trackingController
-
-        self.camera = self.trackingController.camera
-        self.microcontroller = self.trackingController.microcontroller
-        self.navigationController = self.trackingController.navigationController
-        self.liveController = self.trackingController.liveController
-        self.autofocusController = self.trackingController.autofocusController
-        self.configurationManager = self.trackingController.configurationManager
-        self.imageDisplayWindow = self.trackingController.imageDisplayWindow
-        self.crop_width = self.trackingController.crop_width
-        self.crop_height = self.trackingController.crop_height
-        self.display_resolution_scaling = self.trackingController.display_resolution_scaling
-        self.counter = self.trackingController.counter
-        self.experiment_ID = self.trackingController.experiment_ID
-        self.base_path = self.trackingController.base_path
-        self.selected_configurations = self.trackingController.selected_configurations
-        self.tracker = trackingController.tracker
-        
-        self.number_of_selected_configurations = len(self.selected_configurations)
-
-        # self.tracking_time_interval_s = self.trackingController.tracking_time_interval_s
-        # self.flag_stage_tracking_enabled = self.trackingController.flag_stage_tracking_enabled
-        # self.flag_AF_enabled = False
-        # self.flag_save_image = False
-        # self.flag_stop_tracking_requested = False
-
-        self.image_saver = ImageSaver_Tracking(base_path=os.path.join(self.base_path,self.experiment_ID),image_format='bmp')
-
-    def run(self):
-
-        tracking_frame_counter = 0
-        t0 = time.time()
-
-        # save metadata
-        self.txt_file = open( os.path.join(self.base_path,self.experiment_ID,"metadata.txt"), "w+")
-        self.txt_file.write('t0: ' + datetime.now().strftime('%Y-%m-%d_%H-%M-%-S.%f') + '\n')
-        self.txt_file.write('objective: ' + self.trackingController.objective + '\n')
-        self.txt_file.close()
-
-        # create a file for logging 
-        self.csv_file = open( os.path.join(self.base_path,self.experiment_ID,"track.csv"), "w+")
-        self.csv_file.write('dt (s), x_stage (mm), y_stage (mm), z_stage (mm), x_image (mm), y_image(mm), image_filename\n')
-
-        # reset tracker
-        self.tracker.reset()
-
-        # get the manually selected roi
-        init_roi = self.imageDisplayWindow.get_roi_bounding_box()
-        self.tracker.set_roi_bbox(init_roi)
-
-        # tracking loop
-        while self.trackingController.flag_stop_tracking_requested == False:
-
-            print('tracking_frame_counter: ' + str(tracking_frame_counter) )
-            if tracking_frame_counter == 0:
-                is_first_frame = True
-            else:
-                is_first_frame = False
-
-            # timestamp
-            timestamp_last_frame = time.time()
-
-            # switch to the tracking config
-            config = self.selected_configurations[0]
-            self.signal_current_configuration.emit(config)
-            self.wait_till_operation_is_completed()
-
-            # do autofocus 
-            if self.trackingController.flag_AF_enabled and tracking_frame_counter > 1:
-                # do autofocus
-                print('>>> autofocus')
-                self.autofocusController.autofocus()
-                self.autofocusController.wait_till_autofocus_has_completed()
-                print('>>> autofocus completed')
-
-            # get current position
-            x_stage = self.navigationController.x_pos_mm
-            y_stage = self.navigationController.y_pos_mm
-            z_stage = self.navigationController.z_pos_mm
-
-            # grab an image
-            config = self.selected_configurations[0]
-            if(self.number_of_selected_configurations > 1):
-                self.signal_current_configuration.emit(config)
-                self.wait_till_operation_is_completed()
-                self.liveController.turn_on_illumination()        # keep illumination on for single configuration acqusition
-                self.wait_till_operation_is_completed()
-            t = time.time()
-            self.camera.send_trigger() 
-            image = self.camera.read_frame()
-            if(self.number_of_selected_configurations > 1):
-                self.liveController.turn_off_illumination()       # keep illumination on for single configuration acqusition
-            # image crop, rotation and flip
-            image = utils.crop_image(image,self.crop_width,self.crop_height)
-            image = np.squeeze(image)
-            image = utils.rotate_and_flip_image(image,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-            # get image size
-            image_shape = image.shape
-            image_center = np.array([image_shape[1]*0.5,image_shape[0]*0.5])
-
-            # image the rest configurations
-            for config_ in self.selected_configurations[1:]:
-                
-                self.liveController.turn_on_illumination()
-                self.wait_till_operation_is_completed()
-                self.camera.send_trigger() 
-                image_ = self.camera.read_frame()
-                self.liveController.turn_off_illumination()
-                image_ = utils.crop_image(image_,self.crop_width,self.crop_height)
-                image_ = np.squeeze(image_)
-                image_ = utils.rotate_and_flip_image(image_,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-                # display image
-                # self.image_to_display.emit(cv2.resize(image,(round(self.crop_width*self.display_resolution_scaling), round(self.crop_height*self.display_resolution_scaling)),cv2.INTER_LINEAR))
-                image_to_display_ = utils.crop_image(image_,round(self.crop_width*self.liveController.display_resolution_scaling), round(self.crop_height*self.liveController.display_resolution_scaling))
-                # self.image_to_display.emit(image_to_display_)
-                
-                # save image
-                if self.trackingController.flag_save_image:
-                    if self.camera.is_color:
-                        image = cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
-                    self.image_saver.enqueue(image_,tracking_frame_counter,str(config_.name))
-
-            # track
-            objectFound,centroid,rect_pts = self.tracker.track(image, None, is_first_frame = is_first_frame)
-            if objectFound == False:
-                print('')
-                break
-            in_plane_position_error_pixel = image_center - centroid 
-            in_plane_position_error_mm = in_plane_position_error_pixel*self.trackingController.pixel_size_um_scaled/1000
-            x_error_mm = in_plane_position_error_mm[0]
-            y_error_mm = in_plane_position_error_mm[1]
-
-            # display the new bounding box and the image
-            self.imageDisplayWindow.update_bounding_box(rect_pts)
-            self.imageDisplayWindow.display_image(image)
-
-            # move
-            if self.trackingController.flag_stage_tracking_enabled:
-                x_correction_usteps = int(x_error_mm/(SCREW_PITCH_X_MM/FULLSTEPS_PER_REV_X/self.navigationController.x_microstepping))
-                y_correction_usteps = int(y_error_mm/(SCREW_PITCH_Y_MM/FULLSTEPS_PER_REV_Y/self.navigationController.y_microstepping))
-                self.microcontroller.move_x_usteps(TRACKING_MOVEMENT_SIGN_X*x_correction_usteps)
-                self.microcontroller.move_y_usteps(TRACKING_MOVEMENT_SIGN_Y*y_correction_usteps) 
-
-            # save image
-            if self.trackingController.flag_save_image:
-                self.image_saver.enqueue(image,tracking_frame_counter,str(config.name))
-
-            # save position data            
-            # self.csv_file.write('dt (s), x_stage (mm), y_stage (mm), z_stage (mm), x_image (mm), y_image(mm), image_filename\n')
-            self.csv_file.write(str(t)+','+str(x_stage)+','+str(y_stage)+','+str(z_stage)+','+str(x_error_mm)+','+str(y_error_mm)+','+str(tracking_frame_counter)+'\n')
-            if tracking_frame_counter%100 == 0:
-                self.csv_file.flush()
-
-            # wait for movement to complete
-            self.wait_till_operation_is_completed() # to do - make sure both x movement and y movement are complete
-
-            # wait till tracking interval has elapsed
-            while(time.time() - timestamp_last_frame < self.trackingController.tracking_time_interval_s):
-                time.sleep(0.005)
-
-            # increament counter 
-            tracking_frame_counter = tracking_frame_counter + 1
-
-        # tracking terminated
-        self.csv_file.close()
-        self.image_saver.close()
-       
-
-    def wait_till_operation_is_completed(self):
-        while self.microcontroller.is_busy():
-            time.sleep(SLEEP_TIME_S)
-
-
-class ImageDisplayWindow(QMainWindow):
-
-    def __init__(self, window_title='', draw_crosshairs = False, show_LUT=False, autoLevels=False):
-        super().__init__()
-        self.setWindowTitle(window_title)
-        self.setWindowFlags(self.windowFlags() | Qt.CustomizeWindowHint)
-        self.setWindowFlags(self.windowFlags() & ~Qt.WindowCloseButtonHint)
-        self.widget = QWidget()
-        self.show_LUT = show_LUT
-        self.autoLevels = autoLevels
-
-        # interpret image data as row-major instead of col-major
-        pg.setConfigOptions(imageAxisOrder='row-major')
-
-        self.graphics_widget = pg.GraphicsLayoutWidget()
-        self.graphics_widget.view = self.graphics_widget.addViewBox()
-        self.graphics_widget.view.invertY()
-        
-        ## lock the aspect ratio so pixels are always square
-        self.graphics_widget.view.setAspectLocked(True)
-        
-        ## Create image item
-        if self.show_LUT:
-            self.graphics_widget.view = pg.ImageView()
-            self.graphics_widget.img = self.graphics_widget.view.getImageItem()
-            self.graphics_widget.img.setBorder('w')
-            self.graphics_widget.view.ui.roiBtn.hide()
-            self.graphics_widget.view.ui.menuBtn.hide()
-            # self.LUTWidget = self.graphics_widget.view.getHistogramWidget()
-            # self.LUTWidget.autoHistogramRange()
-            # self.graphics_widget.view.autolevels()
-        else:
-            self.graphics_widget.img = pg.ImageItem(border='w')
-            self.graphics_widget.view.addItem(self.graphics_widget.img)
-
-        ## Create ROI
-        self.roi_pos = (500,500)
-        self.roi_size = (500,500)
-        self.ROI = pg.ROI(self.roi_pos, self.roi_size, scaleSnap=True, translateSnap=True)
-        self.ROI.setZValue(10)
-        self.ROI.addScaleHandle((0,0), (1,1))
-        self.ROI.addScaleHandle((1,1), (0,0))
-        self.graphics_widget.view.addItem(self.ROI)
-        self.ROI.hide()
-        self.ROI.sigRegionChanged.connect(self.update_ROI)
-        self.roi_pos = self.ROI.pos()
-        self.roi_size = self.ROI.size()
-
-        ## Variables for annotating images
-        self.draw_rectangle = False
-        self.ptRect1 = None
-        self.ptRect2 = None
-        self.DrawCirc = False
-        self.centroid = None
-        self.DrawCrossHairs = False
-        self.image_offset = np.array([0, 0])
-
-        ## Layout
-        layout = QGridLayout()
-        if self.show_LUT:
-            layout.addWidget(self.graphics_widget.view, 0, 0) 
-        else:
-            layout.addWidget(self.graphics_widget, 0, 0) 
-        self.widget.setLayout(layout)
-        self.setCentralWidget(self.widget)
-
-        # set window size
-        desktopWidget = QDesktopWidget();
-        width = min(desktopWidget.height()*0.9,1000) #@@@TO MOVE@@@#
-        height = width
-        self.setFixedSize(int(width),int(height))
-
-    def display_image(self,image):
-        if ENABLE_TRACKING:
-            image = np.copy(image)
-            self.image_height = image.shape[0],
-            self.image_width = image.shape[1]
-            if(self.draw_rectangle):
-                cv2.rectangle(image, self.ptRect1, self.ptRect2,(255,255,255) , 4)
-                self.draw_rectangle = False
-            self.graphics_widget.img.setImage(image,autoLevels=self.autoLevels)
-        else:
-            self.graphics_widget.img.setImage(image,autoLevels=self.autoLevels)
-
-    def update_ROI(self):
-        self.roi_pos = self.ROI.pos()
-        self.roi_size = self.ROI.size()
-
-    def show_ROI_selector(self):
-        self.ROI.show()
-
-    def hide_ROI_selector(self):
-        self.ROI.hide()
-
-    def get_roi(self):
-        return self.roi_pos,self.roi_size
-
-    def update_bounding_box(self,pts):
-        self.draw_rectangle=True
-        self.ptRect1=(pts[0][0],pts[0][1])
-        self.ptRect2=(pts[1][0],pts[1][1])
-
-    def get_roi_bounding_box(self):
-        self.update_ROI()
-        width = self.roi_size[0]
-        height = self.roi_size[1]
-        xmin = max(0, self.roi_pos[0])
-        ymin = max(0, self.roi_pos[1])
-        return np.array([xmin, ymin, width, height])
-
-    def set_autolevel(self,enabled):
-        self.autoLevels = enabled
-        print('set autolevel to ' + str(enabled))
-
-class NavigationViewer(QFrame):
-
-    def __init__(self, sample = 'glass slide', invertX = False, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.setFrameStyle(QFrame.Panel | QFrame.Raised)
-
-        # interpret image data as row-major instead of col-major
-        pg.setConfigOptions(imageAxisOrder='row-major')
-        self.graphics_widget = pg.GraphicsLayoutWidget()
-        self.graphics_widget.setBackground("w")
-        self.graphics_widget.view = self.graphics_widget.addViewBox(invertX=invertX,invertY=True)
-        ## lock the aspect ratio so pixels are always square
-        self.graphics_widget.view.setAspectLocked(True)
-        ## Create image item
-        self.graphics_widget.img = pg.ImageItem(border='w')
-        self.graphics_widget.view.addItem(self.graphics_widget.img)
-
-        self.grid = QVBoxLayout()
-        self.grid.addWidget(self.graphics_widget)
-        self.setLayout(self.grid)
-
-        if sample == 'glass slide':
-            self.background_image = cv2.imread('images/slide carrier_828x662.png')
-        elif sample == '384 well plate':
-            self.background_image = cv2.imread('c:\\Users\\songtao.cheng\\Documents\\codes-in-KTH\\imaging-farm\\squid-control\\squid-control\\software\\images\\384 well plate_1509x1010.png')
-        elif sample == '96 well plate':
-            self.background_image = cv2.imread('c:\\Users\\songtao.cheng\\Documents\\codes-in-KTH\\imaging-farm\\squid-control\\squid-control\\software\\images\\96 well plate_1509x1010.png')
-        elif sample == '24 well plate':
-            self.background_image = cv2.imread('images/24 well plate_1509x1010.png')
-        elif sample == '12 well plate':
-            self.background_image = cv2.imread('images/12 well plate_1509x1010.png')
-        elif sample == '6 well plate':
-            self.background_image = cv2.imread('images/6 well plate_1509x1010.png')
-        
-        self.current_image = np.copy(self.background_image)
-        self.current_image_display = np.copy(self.background_image)
-        self.image_height = self.background_image.shape[0]
-        self.image_width = self.background_image.shape[1]
-
-        self.location_update_threshold_mm = 0.4
-        self.sample = sample
-
-        if sample == 'glass slide':
-            self.origin_bottom_left_x = 200
-            self.origin_bottom_left_y = 120
-            self.mm_per_pixel = 0.1453
-            self.fov_size_mm = 3000*1.85/(50/9)/1000
-        else:
-            self.location_update_threshold_mm = 0.05
-            self.mm_per_pixel = 0.084665
-            self.fov_size_mm = 3000*1.85/(50/10)/1000
-            self.origin_bottom_left_x = X_ORIGIN_384_WELLPLATE_PIXEL - (X_MM_384_WELLPLATE_UPPERLEFT)/self.mm_per_pixel
-            self.origin_bottom_left_y = Y_ORIGIN_384_WELLPLATE_PIXEL - (Y_MM_384_WELLPLATE_UPPERLEFT)/self.mm_per_pixel         
-
-        self.box_color = (255, 0, 0)
-        self.box_line_thickness = 2
-
-        self.x_mm = None
-        self.y_mm = None
-
-        self.update_display()
-
-    def update_current_location(self,x_mm,y_mm):
-        if self.x_mm != None and self.y_mm != None:
-            # update only when the displacement has exceeded certain value
-            if abs(x_mm - self.x_mm) > self.location_update_threshold_mm or abs(y_mm - self.y_mm) > self.location_update_threshold_mm:
-                self.draw_current_fov(x_mm,y_mm)
-                self.update_display()
-                self.x_mm = x_mm
-                self.y_mm = y_mm
-        else:
-            self.draw_current_fov(x_mm,y_mm)
-            self.update_display()
-            self.x_mm = x_mm
-            self.y_mm = y_mm
-
-    def draw_current_fov(self,x_mm,y_mm):
-        self.current_image_display = np.copy(self.current_image)
-        if self.sample == 'glass slide':
-            current_FOV_top_left = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                                    round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-            current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                                    round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
-        else:
-            current_FOV_top_left = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                                    round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-            current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                                    round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
-        cv2.rectangle(self.current_image_display, current_FOV_top_left, current_FOV_bottom_right, self.box_color, self.box_line_thickness)
-
-    def update_display(self):
-        self.graphics_widget.img.setImage(self.current_image_display,autoLevels=False)
-
-    def clear_slide(self):
-        self.current_image = np.copy(self.background_image)
-        self.current_image_display = np.copy(self.background_image)
-        self.update_display()
-
-    def register_fov(self,x_mm,y_mm):
-        color = (0,0,255)
-        if self.sample == 'glass slide':
-            current_FOV_top_left = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                                    round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-            current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                                    round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
-        else:
-            current_FOV_top_left = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                                    round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-            current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                                    round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
-        cv2.rectangle(self.current_image, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
-
-    def register_fov_to_image(self,x_mm,y_mm):
-        color = (252,174,30)
-        if self.sample == 'glass slide':
-            current_FOV_top_left = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                                    round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-            current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                                    round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
-        else:
-            current_FOV_top_left = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                                    round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-            current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                                    round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
-        cv2.rectangle(self.current_image, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
-
-    def deregister_fov_to_image(self,x_mm,y_mm):
-        color = (255,255,255)
-        if self.sample == 'glass slide':
-            current_FOV_top_left = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                                    round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-            current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                                    round(self.image_height - (self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
-        else:
-            current_FOV_top_left = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel - self.fov_size_mm/2/self.mm_per_pixel),
-                                    round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) - self.fov_size_mm/2/self.mm_per_pixel))
-            current_FOV_bottom_right = (round(self.origin_bottom_left_x + x_mm/self.mm_per_pixel + self.fov_size_mm/2/self.mm_per_pixel),
-                                    round((self.origin_bottom_left_y + y_mm/self.mm_per_pixel) + self.fov_size_mm/2/self.mm_per_pixel))
-        cv2.rectangle(self.current_image, current_FOV_top_left, current_FOV_bottom_right, color, self.box_line_thickness)
-
-
-class ImageArrayDisplayWindow(QMainWindow):
-
-    def __init__(self, window_title=''):
-        super().__init__()
-        self.setWindowTitle(window_title)
-        self.setWindowFlags(self.windowFlags() | Qt.CustomizeWindowHint)
-        self.setWindowFlags(self.windowFlags() & ~Qt.WindowCloseButtonHint)
-        self.widget = QWidget()
-
-        # interpret image data as row-major instead of col-major
-        pg.setConfigOptions(imageAxisOrder='row-major')
-
-        self.graphics_widget_1 = pg.GraphicsLayoutWidget()
-        self.graphics_widget_1.view = self.graphics_widget_1.addViewBox()
-        self.graphics_widget_1.view.setAspectLocked(True)
-        self.graphics_widget_1.img = pg.ImageItem(border='w')
-        self.graphics_widget_1.view.addItem(self.graphics_widget_1.img) 
-        self.graphics_widget_1.view.invertY()
-
-        self.graphics_widget_2 = pg.GraphicsLayoutWidget()
-        self.graphics_widget_2.view = self.graphics_widget_2.addViewBox()
-        self.graphics_widget_2.view.setAspectLocked(True)
-        self.graphics_widget_2.img = pg.ImageItem(border='w')
-        self.graphics_widget_2.view.addItem(self.graphics_widget_2.img)
-        self.graphics_widget_2.view.invertY()
-
-        self.graphics_widget_3 = pg.GraphicsLayoutWidget()
-        self.graphics_widget_3.view = self.graphics_widget_3.addViewBox()
-        self.graphics_widget_3.view.setAspectLocked(True)
-        self.graphics_widget_3.img = pg.ImageItem(border='w')
-        self.graphics_widget_3.view.addItem(self.graphics_widget_3.img)
-        self.graphics_widget_3.view.invertY()
-
-        self.graphics_widget_4 = pg.GraphicsLayoutWidget()
-        self.graphics_widget_4.view = self.graphics_widget_4.addViewBox()
-        self.graphics_widget_4.view.setAspectLocked(True)
-        self.graphics_widget_4.img = pg.ImageItem(border='w')
-        self.graphics_widget_4.view.addItem(self.graphics_widget_4.img)
-        self.graphics_widget_4.view.invertY()
-        ## Layout
-        layout = QGridLayout()
-        layout.addWidget(self.graphics_widget_1, 0, 0)
-        layout.addWidget(self.graphics_widget_2, 0, 1)
-        layout.addWidget(self.graphics_widget_3, 1, 0)
-        layout.addWidget(self.graphics_widget_4, 1, 1) 
-        self.widget.setLayout(layout)
-        self.setCentralWidget(self.widget)
-
-        # set window size
-        desktopWidget = QDesktopWidget();
-        width = min(desktopWidget.height()*0.9,1000) #@@@TO MOVE@@@#
-        height = width
-        self.setFixedSize(int(width),int(height))
-
-    def display_image(self,image,illumination_source):
-        if illumination_source < 11:
-            self.graphics_widget_1.img.setImage(image,autoLevels=False)
-        elif illumination_source == 11:
-            self.graphics_widget_2.img.setImage(image,autoLevels=False)
-        elif illumination_source == 12:
-            self.graphics_widget_3.img.setImage(image,autoLevels=False)
-        elif illumination_source == 13:
-            self.graphics_widget_4.img.setImage(image,autoLevels=False)
-
-class ConfigurationManager(QObject):
-    def __init__(self,filename="channel_configurations.xml"):
-        QObject.__init__(self)
-        self.config_filename = filename
-        self.configurations = []
-        self.read_configurations()
-        
-    def save_configurations(self):
-        self.write_configuration(self.config_filename)
-
-    def write_configuration(self,filename):
-        self.config_xml_tree.write(filename, encoding="utf-8", xml_declaration=True, pretty_print=True)
-
-    def read_configurations(self):
-        if(os.path.isfile(self.config_filename)==False):
-            utils_config.generate_default_configuration(self.config_filename)
-        self.config_xml_tree = ET.parse(self.config_filename)
-        self.config_xml_tree_root = self.config_xml_tree.getroot()
-        self.num_configurations = 0
-        for mode in self.config_xml_tree_root.iter('mode'):
-            self.num_configurations = self.num_configurations + 1
-            self.configurations.append(
-                Configuration(
-                    mode_id = mode.get('ID'),
-                    name = mode.get('Name'),
-                    exposure_time = float(mode.get('ExposureTime')),
-                    analog_gain = float(mode.get('AnalogGain')),
-                    illumination_source = int(mode.get('IlluminationSource')),
-                    illumination_intensity = float(mode.get('IlluminationIntensity')),
-                    camera_sn = mode.get('CameraSN'),
-                    z_offset = float(mode.get('ZOffset')),
-                    pixel_format = mode.get('PixelFormat'),
-                    _pixel_format_options = mode.get('_PixelFormat_options')
-                )
-            )
-
-    def update_configuration(self,configuration_id,attribute_name,new_value):
-        conf_list = self.config_xml_tree_root.xpath("//mode[contains(@ID," + "'" + str(configuration_id) + "')]")
-        mode_to_update = conf_list[0]
-        mode_to_update.set(attribute_name,str(new_value))
-        self.save_configurations()
-
-    def update_configuration_without_writing(self, configuration_id, attribute_name, new_value):
-        conf_list = self.config_xml_tree_root.xpath("//mode[contains(@ID," + "'" + str(configuration_id) + "')]")
-        mode_to_update = conf_list[0]
-        mode_to_update.set(attribute_name,str(new_value))
-
-    def write_configuration_selected(self,selected_configurations,filename): # to be only used with a throwaway instance
-                                                                             # of this class
-        for conf in self.configurations:
-            self.update_configuration_without_writing(conf.id, "Selected", 0)
-        for conf in selected_configurations:
-            self.update_configuration_without_writing(conf.id, "Selected", 1)
-        self.write_configuration(filename)
-        for conf in selected_configurations:
-            self.update_configuration_without_writing(conf.id, "Selected", 0)
 
 class PlateReaderNavigationController(QObject):
 
@@ -3102,3 +2261,59 @@ class LaserAutofocusController(QObject):
         while self.microcontroller.is_busy():
             time.sleep(SLEEP_TIME_S)
         
+class ConfigurationManager(QObject):
+    def __init__(self,filename="channel_configurations.xml"):
+        QObject.__init__(self)
+        self.config_filename = filename
+        self.configurations = []
+        self.read_configurations()
+        
+    def save_configurations(self):
+        self.write_configuration(self.config_filename)
+
+    def write_configuration(self,filename):
+        self.config_xml_tree.write(filename, encoding="utf-8", xml_declaration=True, pretty_print=True)
+
+    def read_configurations(self):
+        if(os.path.isfile(self.config_filename)==False):
+            utils_config.generate_default_configuration(self.config_filename)
+        self.config_xml_tree = ET.parse(self.config_filename)
+        self.config_xml_tree_root = self.config_xml_tree.getroot()
+        self.num_configurations = 0
+        for mode in self.config_xml_tree_root.iter('mode'):
+            self.num_configurations = self.num_configurations + 1
+            self.configurations.append(
+                Configuration(
+                    mode_id = mode.get('ID'),
+                    name = mode.get('Name'),
+                    exposure_time = float(mode.get('ExposureTime')),
+                    analog_gain = float(mode.get('AnalogGain')),
+                    illumination_source = int(mode.get('IlluminationSource')),
+                    illumination_intensity = float(mode.get('IlluminationIntensity')),
+                    camera_sn = mode.get('CameraSN'),
+                    z_offset = float(mode.get('ZOffset')),
+                    pixel_format = mode.get('PixelFormat'),
+                    _pixel_format_options = mode.get('_PixelFormat_options')
+                )
+            )
+
+    def update_configuration(self,configuration_id,attribute_name,new_value):
+        conf_list = self.config_xml_tree_root.xpath("//mode[contains(@ID," + "'" + str(configuration_id) + "')]")
+        mode_to_update = conf_list[0]
+        mode_to_update.set(attribute_name,str(new_value))
+        self.save_configurations()
+
+    def update_configuration_without_writing(self, configuration_id, attribute_name, new_value):
+        conf_list = self.config_xml_tree_root.xpath("//mode[contains(@ID," + "'" + str(configuration_id) + "')]")
+        mode_to_update = conf_list[0]
+        mode_to_update.set(attribute_name,str(new_value))
+
+    def write_configuration_selected(self,selected_configurations,filename): # to be only used with a throwaway instance
+                                                                             # of this class
+        for conf in self.configurations:
+            self.update_configuration_without_writing(conf.id, "Selected", 0)
+        for conf in selected_configurations:
+            self.update_configuration_without_writing(conf.id, "Selected", 1)
+        self.write_configuration(filename)
+        for conf in selected_configurations:
+            self.update_configuration_without_writing(conf.id, "Selected", 0)

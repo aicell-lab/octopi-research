@@ -98,14 +98,7 @@ class SquidController:
         self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
         self.scanCoordinates = core.ScanCoordinates()
         self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates,parent=self)
-        if ENABLE_TRACKING:
-            self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
-        #self.imageSaver = core.ImageSaver()
-        #self.imageDisplay = core.ImageDisplay()
-        #self.navigationViewer = core.NavigationViewer(sample=str(WELLPLATE_FORMAT)+' well plate')
 
-        #self.multiPointWorker = core.MultiPointWorker(self.multipointController)
-        # retract the object
         self.navigationController.home_z()
         # wait for the operation to finish
         t0 = time.time()
@@ -189,7 +182,6 @@ class SquidController:
             
             self.displacementMeasurementController = core_displacement_measurement.DisplacementMeasurementController()
             self.laserAutofocusController = core.LaserAutofocusController(self.microcontroller,self.camera_focus,self.liveController_focus_camera,self.navigationController,has_two_interfaces=HAS_TWO_INTERFACES,use_glass_top=USE_GLASS_TOP)
-
             # camera
             self.camera_focus.set_software_triggered_acquisition() #self.camera.set_continuous_acquisition()
             self.camera_focus.set_callback(self.streamHandler_focus_camera.on_new_frame)
@@ -221,8 +213,9 @@ class SquidController:
         print(location_list)
         self.multipointController.set_base_path(DEFAULT_SAVING_PATH)
         self.multipointController.set_selected_configurations(self.channel_names)
+        self.multipointController.do_autofocus = True
+
         self.multipointController.start_new_experiment(action_ID)
-        
         self.multipointController.run_acquisition_reef(location_list=location_list)
         
     def close(self):
