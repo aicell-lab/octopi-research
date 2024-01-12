@@ -272,9 +272,9 @@ class ImageSaver(QObject):
         self.thread.join()
 
 
-class ImageSaver_Tracking(QObject):
+class ImageSaver_Tracking():
     def __init__(self,base_path,image_format='bmp'):
-        QObject.__init__(self)
+        
         self.base_path = base_path
         self.image_format = image_format
         self.max_num_image_per_folder = 1000
@@ -510,7 +510,7 @@ class LiveController(QObject):
     def set_display_resolution_scaling(self, display_resolution_scaling):
         self.display_resolution_scaling = display_resolution_scaling/100
 
-class NavigationController(QObject):
+class NavigationController():
 
     xPos = Signal(float)
     yPos = Signal(float)
@@ -520,7 +520,7 @@ class NavigationController(QObject):
     signal_joystick_button_pressed = Signal()
 
     def __init__(self,microcontroller):
-        QObject.__init__(self)
+        
         self.microcontroller = microcontroller
         self.x_pos_mm = 0
         self.y_pos_mm = 0
@@ -589,16 +589,9 @@ class NavigationController(QObject):
             self.theta_pos_rad = theta_pos*ENCODER_POS_SIGN_THETA*ENCODER_STEP_SIZE_THETA
         else:
             self.theta_pos_rad = theta_pos*STAGE_POS_SIGN_THETA*(2*math.pi/(self.theta_microstepping*FULLSTEPS_PER_REV_THETA))
-        # emit the updated position
-        self.xPos.emit(self.x_pos_mm)
-        self.yPos.emit(self.y_pos_mm)
-        self.zPos.emit(self.z_pos_mm*1000)
-        self.thetaPos.emit(self.theta_pos_rad*360/(2*math.pi))
-        self.xyPos.emit(self.x_pos_mm,self.y_pos_mm)
+
 
         if microcontroller.signal_joystick_button_pressed_event:
-            if self.enable_joystick_button_action:
-                self.signal_joystick_button_pressed.emit()
             print('joystick button pressed')
             microcontroller.signal_joystick_button_pressed_event = False
 
@@ -672,14 +665,11 @@ class NavigationController(QObject):
         self.move_x_to(x_mm)
         self.move_y_to(y_mm)
 
-class SlidePositionControlWorker(QObject):
+class SlidePositionControlWorker():
     
-    finished = Signal()
-    signal_stop_live = Signal()
-    signal_resume_live = Signal()
 
     def __init__(self,slidePositionController,home_x_and_y_separately=False):
-        QObject.__init__(self)
+        
         self.slidePositionController = slidePositionController
         self.navigationController = slidePositionController.navigationController
         self.microcontroller = self.navigationController.microcontroller

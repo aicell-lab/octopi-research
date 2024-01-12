@@ -1,7 +1,7 @@
 import os 
 # app specific libraries
 import control.camera as camera
-import control.core as core
+import control.core_reef as core
 import control.microcontroller as microcontroller
 from control._def import *
 import logging
@@ -104,7 +104,7 @@ class SquidController:
         #self.imageDisplay = core.ImageDisplay()
         #self.navigationViewer = core.NavigationViewer(sample=str(WELLPLATE_FORMAT)+' well plate')
 
-        self.multiPointWorker = core.MultiPointWorker(self.multipointController)
+        #self.multiPointWorker = core.MultiPointWorker(self.multipointController)
         # retract the object
         self.navigationController.home_z()
         # wait for the operation to finish
@@ -196,30 +196,7 @@ class SquidController:
             self.camera_focus.enable_callback()
             self.camera_focus.start_streaming()
         
-        
-    def well_plate_scan(self):
-        toggle_acquisition
-        time.sleep(1)
 
-    def toggle_acquisition(self):
-            self.setEnabled_all(False)
-            self.multipointController.set_selected_configurations((item.text() for item in self.list_configurations.selectedItems()))
-            self.multipointController.start_new_experiment(self.lineEdit_experimentID.text())
-            # set parameters
-            self.multipointController.set_deltaX(self.entry_deltaX.value())
-            self.multipointController.set_deltaY(self.entry_deltaY.value())
-            self.multipointController.set_deltaZ(self.entry_deltaZ.value())
-            self.multipointController.set_deltat(self.entry_dt.value())
-            self.multipointController.set_NX(self.entry_NX.value())
-            self.multipointController.set_NY(self.entry_NY.value())
-            self.multipointController.set_NZ(self.entry_NZ.value())
-            self.multipointController.set_Nt(self.entry_Nt.value())
-            self.multipointController.set_af_flag(self.checkbox_withAutofocus.isChecked())
-            self.multipointController.set_reflection_af_flag(self.checkbox_withReflectionAutofocus.isChecked())
-            self.multipointController.set_base_path(self.lineEdit_savingDir.text())
-            self.multipointController.run_acquisition()
-
-            self.setEnabled_all(False)
 
 
     def closeEvent(self, event):
@@ -267,6 +244,14 @@ class AsyncioThread(QThread):
 squidController= SquidController(is_simulation=True)
 #navigationController = squidController.navigationController
 
+def gray_to_rgb(gray_img):
+    # Add a third dimension to the gray image
+    if len(gray_img.shape) == 2:
+        gray_img = gray_img[:, :, np.newaxis]
+
+    # Convert the gray image to a 3-channel RGB image
+    rgb_img = np.repeat(gray_img, 3, axis=2)
+    return rgb_img
 
 class VideoTransformTrack(MediaStreamTrack):
     """
@@ -278,19 +263,12 @@ class VideoTransformTrack(MediaStreamTrack):
     def __init__(self):
         super().__init__()  # don't forget this!
         self.count = 0
-    def gray_to_rgb(self,gray_img):
-        # Add a third dimension to the gray image
-        if len(gray_img.shape) == 2:
-            gray_img = gray_img[:, :, np.newaxis]
 
-        # Convert the gray image to a 3-channel RGB image
-        rgb_img = np.repeat(gray_img, 3, axis=2)
-        return rgb_img
 
     async def recv(self):
         squidController.camera.send_trigger()
         gray_img = squidController.camera.read_frame()
-        rgb_img = self.gray_to_rgb(gray_img)
+        rgb_img = gray_to_rgb(gray_img)
 
 
         # Create the video frame
@@ -333,12 +311,17 @@ async def start_service(service_id, workspace=None, token=None):
 
     def move_distance(x,y,z, context=None):
         squidController.navigationController.move_x(x)
-        squidController.well_plate_scan()
         squidController.navigationController.move_y(y)
         squidController.navigationController.move_z(z)
         print(f'The stage moved ({x},{y},{z})mm through x,y,z axis')
-        
     
+    def snap(context=None):
+        squidController.camera.send_trigger()
+        gray_img = squidController.camera.read_frame()
+        rgb_img = gray_to_rgb(gray_img)
+        return rgb_img
+
+            
     def move_stage_to(x,y,z, context=None):
         squidController.navigationController.move_x_to(x)
         squidController.navigationController.move_y_to(y)
@@ -348,14 +331,15 @@ async def start_service(service_id, workspace=None, token=None):
         
     await server.register_service(
         {
-            "id": "microscope-control",
+            "id": "microscope-control-squid",
             "config":{
                 "visibility": "public",
                 "run_in_executor": True,
                 "require_context": True,   
             },
             "type": "echo",
-            "move": move_distance
+            "move": move_distance,
+            "snap": snap
             
         }
     )
@@ -370,9 +354,6 @@ async def start_service(service_id, workspace=None, token=None):
         },
     )
     
-    # svc = await get_rtc_service(server, service_id)
-    # mc = await svc.get_service("microscope-control")
-    # await mc.move("left")
 
     print(
         f"Service (client_id={client_id}, service_id={service_id}) started successfully, available at https://ai.imjoy.io/{server.config.workspace}/services"
