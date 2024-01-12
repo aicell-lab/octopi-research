@@ -375,7 +375,7 @@ ENABLE_STROBE_OUTPUT = False
 Z_STACKING_CONFIG = 'FROM CENTER' # 'FROM BOTTOM', 'FROM TOP'
 
 # plate format
-WELLPLATE_FORMAT = 384
+WELLPLATE_FORMAT = 96
 
 # for 384 well plate
 X_MM_384_WELLPLATE_UPPERLEFT = 0
@@ -443,7 +443,20 @@ ENABLE_SPINNING_DISK_CONFOCAL=False
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################
-config_files = glob.glob('.' + '/' + 'configuration*.ini')
+#config_files = glob.glob('.' + '/' + 'configuration*.ini')
+
+try:
+    # Attempt to find .ini files using the original method
+    config_files = glob.glob('.' + '/' + 'configuration*.ini')
+    if not config_files:
+        # If no .ini files are found using the original method, fall back to the alternative method
+        raise FileNotFoundError
+except FileNotFoundError:
+    # Get the current directory of the script
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+    # Search for .ini files in the current directory
+    config_files = glob.glob(os.path.join(current_directory, '*.ini'))
+
 if config_files:
     if len(config_files) > 1:
         print('multiple machine configuration files found, the program will exit')
