@@ -100,78 +100,75 @@ class SquidController:
         self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates,parent=self)
         if ENABLE_TRACKING:
             self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
-        #self.imageSaver = core.ImageSaver()
-        #self.imageDisplay = core.ImageDisplay()
-        #self.navigationViewer = core.NavigationViewer(sample=str(WELLPLATE_FORMAT)+' well plate')
+        
+        def init_stage(self):
+            # retract the object
+            self.navigationController.home_z()
+            # wait for the operation to finish
+            t0 = time.time()
+            while self.microcontroller.is_busy():
+                time.sleep(0.005)
+                if time.time() - t0 > 10:
+                    print('z homing timeout, the program will exit')
+                    exit()
+            print('objective retracted')
+            self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
 
-        #self.multiPointWorker = core.MultiPointWorker(self.multipointController)
-        # retract the object
-        self.navigationController.home_z()
-        # wait for the operation to finish
-        t0 = time.time()
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-            if time.time() - t0 > 10:
-                print('z homing timeout, the program will exit')
-                exit()
-        print('objective retracted')
-        self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
+            # home XY, set zero and set software limit
+            print('home xy')
+            timestamp_start = time.time()
+            # x needs to be at > + 20 mm when homing y
+            self.navigationController.move_x(20) # to-do: add blocking code
+            while self.microcontroller.is_busy():
+                time.sleep(0.005)
+            # home y
+            self.navigationController.home_y()
+            t0 = time.time()
+            while self.microcontroller.is_busy():
+                time.sleep(0.005)
+                if time.time() - t0 > 10:
+                    print('y homing timeout, the program will exit')
+                    exit()
+            self.navigationController.zero_y()
+            # home x
+            self.navigationController.home_x()
+            t0 = time.time()
+            while self.microcontroller.is_busy():
+                time.sleep(0.005)
+                if time.time() - t0 > 10:
+                    print('y homing timeout, the program will exit')
+                    exit()
+            self.navigationController.zero_x()
+            self.slidePositionController.homing_done = True
 
-        # home XY, set zero and set software limit
-        print('home xy')
-        timestamp_start = time.time()
-        # x needs to be at > + 20 mm when homing y
-        self.navigationController.move_x(20) # to-do: add blocking code
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-        # home y
-        self.navigationController.home_y()
-        t0 = time.time()
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-            if time.time() - t0 > 10:
-                print('y homing timeout, the program will exit')
-                exit()
-        self.navigationController.zero_y()
-        # home x
-        self.navigationController.home_x()
-        t0 = time.time()
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-            if time.time() - t0 > 10:
-                print('y homing timeout, the program will exit')
-                exit()
-        self.navigationController.zero_x()
-        self.slidePositionController.homing_done = True
+            # move to scanning position
+            self.navigationController.move_x(20)
+            while self.microcontroller.is_busy():
+                time.sleep(0.005)
+            self.navigationController.move_y(20)
+            while self.microcontroller.is_busy():
+                time.sleep(0.005)
 
-        # move to scanning position
-        self.navigationController.move_x(20)
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-        self.navigationController.move_y(20)
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-
-        # move z
-        self.navigationController.move_z_to(DEFAULT_Z_POS_MM)
-        # wait for the operation to finish
-        t0 = time.time() 
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-            if time.time() - t0 > 5:
-                print('z return timeout, the program will exit')
-                exit()
+            # move z
+            self.navigationController.move_z_to(DEFAULT_Z_POS_MM)
+            # wait for the operation to finish
+            t0 = time.time() 
+            while self.microcontroller.is_busy():
+                time.sleep(0.005)
+                if time.time() - t0 > 5:
+                    print('z return timeout, the program will exit')
+                    exit()
 
         # open the camera
         # camera start streaming
         # self.camera.set_reverse_x(CAMERA_REVERSE_X) # these are not implemented for the cameras in use
         # self.camera.set_reverse_y(CAMERA_REVERSE_Y) # these are not implemented for the cameras in use
         self.camera.set_software_triggered_acquisition() #self.camera.set_continuous_acquisition()
-        self.camera.set_callback(self.streamHandler.on_new_frame)
-        self.camera.enable_callback()
-        # camera
-        self.camera.set_callback(self.streamHandler.on_new_frame)
-
+        # self.camera.set_callback(self.streamHandler.on_new_frame)
+        # self.camera.enable_callback()
+        # # camera
+        # self.camera.set_callback(self.streamHandler.on_new_frame)
+        self.camera.start_streaming()
 
         # set the configuration of class liveController (LED mode, expore time, etc.)
         self.liveController.set_microscope_mode(self.configurationManager.configurations[0])
@@ -192,8 +189,8 @@ class SquidController:
 
             # camera
             self.camera_focus.set_software_triggered_acquisition() #self.camera.set_continuous_acquisition()
-            self.camera_focus.set_callback(self.streamHandler_focus_camera.on_new_frame)
-            self.camera_focus.enable_callback()
+            # self.camera_focus.set_callback(self.streamHandler_focus_camera.on_new_frame)
+            # self.camera_focus.enable_callback()
             self.camera_focus.start_streaming()
         
 
@@ -243,7 +240,7 @@ class AsyncioThread(QThread):
 
 squidController= SquidController(is_simulation=False)
 #navigationController = squidController.navigationController
-
+squidController.microcontroller.turn_off_illumination()
 def gray_to_rgb(gray_img):
     # Add a third dimension to the gray image
     if len(gray_img.shape) == 2:
@@ -266,10 +263,11 @@ class VideoTransformTrack(MediaStreamTrack):
 
 
     async def recv(self):
+        
         squidController.camera.send_trigger()
         gray_img = squidController.camera.read_frame()
+        
         rgb_img = gray_to_rgb(gray_img)
-
 
         # Create the video frame
         new_frame = VideoFrame.from_ndarray(rgb_img, format="bgr24")
@@ -300,12 +298,14 @@ async def start_service(service_id, workspace=None, token=None):
         @peer_connection.on("track")
         def on_track(track):
             print(f"Track {track.kind} received")
+            #squidController.microcontroller.turn_on_illumination()
             peer_connection.addTrack(
                 VideoTransformTrack()
             )
             @track.on("ended")
             async def on_ended():
                 print(f"Track {track.kind} ended")
+                
 
 
 
@@ -322,8 +322,9 @@ async def start_service(service_id, workspace=None, token=None):
         print(f'The stage moved ({x},{y},{z})mm through x,y,z axis')
     
     def snap(context=None):
-        #squidController.camera.send_trigger()
+        squidController.camera.send_trigger()
         gray_img = squidController.camera.read_frame()
+        #squidController.camera.stop_streaming()
         rgb_img = gray_to_rgb(gray_img)
         return rgb_img
 
@@ -340,6 +341,10 @@ async def start_service(service_id, workspace=None, token=None):
             time.sleep(0.005)
         print(f'The stage moved to position ({x},{y},{z})mm')
 
+    def open_illumination(context=None):
+        squidController.microcontroller.turn_on_illumination()
+    def close_illumination(context=None):
+        squidController.microcontroller.turn_off_illumination()
         
     await server.register_service(
         {
@@ -351,7 +356,9 @@ async def start_service(service_id, workspace=None, token=None):
             },
             "type": "echo",
             "move": move_distance,
-            "snap": snap
+            "snap": snap,
+            "off_illumination": close_illumination,
+            "on_illumination": open_illumination
             
         }
     )
