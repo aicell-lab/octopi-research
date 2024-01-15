@@ -241,7 +241,7 @@ class AsyncioThread(QThread):
         self.loop.run_forever()
 
 
-squidController= SquidController(is_simulation=True)
+squidController= SquidController(is_simulation=False)
 #navigationController = squidController.navigationController
 
 def gray_to_rgb(gray_img):
@@ -311,12 +311,18 @@ async def start_service(service_id, workspace=None, token=None):
 
     def move_distance(x,y,z, context=None):
         squidController.navigationController.move_x(x)
+        while squidController.microcontroller.is_busy():
+            time.sleep(0.005)
         squidController.navigationController.move_y(y)
+        while squidController.microcontroller.is_busy():
+            time.sleep(0.005)
         squidController.navigationController.move_z(z)
+        while squidController.microcontroller.is_busy():
+            time.sleep(0.005)
         print(f'The stage moved ({x},{y},{z})mm through x,y,z axis')
     
     def snap(context=None):
-        squidController.camera.send_trigger()
+        #squidController.camera.send_trigger()
         gray_img = squidController.camera.read_frame()
         rgb_img = gray_to_rgb(gray_img)
         return rgb_img
@@ -324,8 +330,14 @@ async def start_service(service_id, workspace=None, token=None):
             
     def move_stage_to(x,y,z, context=None):
         squidController.navigationController.move_x_to(x)
+        while squidController.microcontroller.is_busy():
+            time.sleep(0.005)
         squidController.navigationController.move_y_to(y)
+        while squidController.microcontroller.is_busy():
+            time.sleep(0.005)
         squidController.navigationController.move_z_to(z)
+        while squidController.microcontroller.is_busy():
+            time.sleep(0.005)
         print(f'The stage moved to position ({x},{y},{z})mm')
 
         
