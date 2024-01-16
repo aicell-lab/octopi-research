@@ -512,12 +512,7 @@ class LiveController(QObject):
 
 class NavigationController():
 
-    xPos = Signal(float)
-    yPos = Signal(float)
-    zPos = Signal(float)
-    thetaPos = Signal(float)
-    xyPos = Signal(float,float)
-    signal_joystick_button_pressed = Signal()
+
 
     def __init__(self,microcontroller):
         
