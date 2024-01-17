@@ -1,3 +1,7 @@
 .DS_Store
 *.pyc 
 *.xml
+.vscode/launch.json
+cache/laser_af_reference_plane.txt
+software/hypha_register_demo.py
+software/control/gxipy/GxIAPI.dll
