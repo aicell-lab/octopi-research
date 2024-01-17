@@ -41,7 +41,7 @@ import pandas as pd
 import imageio as iio
 
 import subprocess
-
+import threading
 class ObjectiveStore:
     def __init__(self, objectives_dict = OBJECTIVES, default_objective = DEFAULT_OBJECTIVE):
         self.objectives_dict = objectives_dict
@@ -1762,16 +1762,20 @@ class MultiPointController(QObject):
         self.do_autofocus = flag
     def set_reflection_af_flag(self,flag):
         self.do_reflection_af = flag
-    def set_crop(self,crop_width,height):
+    def set_crop(self,crop_width,crop_height):
         self.crop_width = crop_width
         self.crop_height = crop_height
 
     def set_base_path(self,path):
         self.base_path = path
+    
+
+
+
 
     def start_new_experiment(self,experiment_ID): # @@@ to do: change name to prepare_folder_for_new_experiment
         # generate unique experiment ID
-        self.experiment_ID = experiment_ID.replace(' ','_') + '_' + datetime.now().strftime('%Y-%m-%d_%H-%M-%-S.%f')
+        self.experiment_ID = experiment_ID.replace(' ','_') + '_' #+ datetime.now().strftime('%Y-%m-%d_%H-%M-%-S.%f')
         self.recording_start_time = time.time()
         # create a new folder
         os.mkdir(os.path.join(self.base_path,self.experiment_ID))
@@ -1802,7 +1806,6 @@ class MultiPointController(QObject):
         self.tile_stitchers = {}
         print(str(self.Nt) + '_' + str(self.NX) + '_' + str(self.NY) + '_' + str(self.NZ))
         if location_list is not None:
-            print(location_list)
             self.location_list = location_list
         else:
             self.location_list = None
@@ -1867,6 +1870,61 @@ class MultiPointController(QObject):
         self.thread.finished.connect(self.thread.quit)
         # start the thread
         self.thread.start()
+
+       
+    def run_acquisition_reef(self, location_list=None): 
+        print('start multipoint')
+        self.tile_stitchers = {}
+        print(str(self.Nt) + '_' + str(self.NX) + '_' + str(self.NY) + '_' + str(self.NZ))
+        if location_list is not None:
+            self.location_list = location_list
+        else:
+            self.location_list = None
+
+        self.abort_acqusition_requested = False
+
+        
+
+        self.configuration_before_running_multipoint = self.liveController.currentConfiguration
+        # stop live
+        if self.liveController.is_live:
+            self.liveController_was_live_before_multipoint = True
+            self.liveController.stop_live() # @@@ to do: also uncheck the live button
+        else:
+            self.liveController_was_live_before_multipoint = False
+
+        # disable callback
+        if self.camera.callback_is_enabled:
+            self.camera_callback_was_enabled_before_multipoint = True
+            self.camera.disable_callback()
+        else:
+            self.camera_callback_was_enabled_before_multipoint = False
+
+        if self.usb_spectrometer != None:
+            if self.usb_spectrometer.streaming_started == True and self.usb_spectrometer.streaming_paused == False:
+                self.usb_spectrometer.pause_streaming()
+                self.usb_spectrometer_was_streaming = True
+            else:
+                self.usb_spectrometer_was_streaming = False
+
+        if self.parent is not None:
+            try:
+                self.parent.imageDisplayTabs.setCurrentWidget(self.parent.imageArrayDisplayWindow.widget)
+            except:
+                pass
+            try:
+                self.parent.recordTabWidget.setCurrentWidget(self.parent.statsDisplayWidget)
+            except:
+                pass
+        # run the acquisition
+        self.timestamp_acquisition_started = time.time()
+        # create a worker object
+        self.processingHandler.start_processing()
+        self.processingHandler.start_uploading()
+        self.multiPointWorker = MultiPointWorker(self)
+        worker_thread = threading.Thread(target=self.multiPointWorker.run)
+        # Start the thread
+        worker_thread.start()
 
     def _on_acquisition_completed(self):
         # restore the previous selected mode
@@ -2452,9 +2510,9 @@ class NavigationViewer(QFrame):
         if sample == 'glass slide':
             self.background_image = cv2.imread('images/slide carrier_828x662.png')
         elif sample == '384 well plate':
-            self.background_image = cv2.imread('images/384 well plate_1509x1010.png')
+            self.background_image = cv2.imread('c:\\Users\\songtao.cheng\\Documents\\codes-in-KTH\\imaging-farm\\squid-control\\squid-control\\software\\images\\384 well plate_1509x1010.png')
         elif sample == '96 well plate':
-            self.background_image = cv2.imread('images/96 well plate_1509x1010.png')
+            self.background_image = cv2.imread('c:\\Users\\songtao.cheng\\Documents\\codes-in-KTH\\imaging-farm\\squid-control\\squid-control\\software\\images\\96 well plate_1509x1010.png')
         elif sample == '24 well plate':
             self.background_image = cv2.imread('images/24 well plate_1509x1010.png')
         elif sample == '12 well plate':
@@ -2863,9 +2921,9 @@ class LaserAutofocusController(QObject):
         self.spot_spacing_pixels = None # spacing between the spots from the two interfaces (unit: pixel)
         
         self.look_for_cache = look_for_cache
-
+        self.rootpath='c:\\Users\\songtao.cheng\\Documents\\codes-in-KTH\\imaging-farm\\squid-control\\squid-control\\'
         if look_for_cache:
-            cache_path = "cache/laser_af_reference_plane.txt"
+            cache_path = self.rootpath+ "cache\\laser_af_reference_plane.txt"
             try:
                 with open(cache_path, "r") as cache_file:
                     for line in cache_file:
@@ -2886,7 +2944,7 @@ class LaserAutofocusController(QObject):
     def initialize_manual(self, x_offset, y_offset, width, height, pixel_to_um, x_reference, write_to_cache=True):
         cache_string = ",".join([str(x_offset),str(y_offset), str(width),str(height), str(pixel_to_um), str(x_reference)])
         if write_to_cache:
-            cache_path = Path("cache/laser_af_reference_plane.txt")
+            cache_path = Path(self.rootpath + "cache\\laser_af_reference_plane.txt")
             cache_path.parent.mkdir(parents=True, exist_ok=True)
             cache_path.write_text(cache_string)
         # x_reference is relative to the full sensor
@@ -2966,7 +3024,7 @@ class LaserAutofocusController(QObject):
         self.x_reference = x1
 
         if self.look_for_cache:
-            cache_path = "cache/laser_af_reference_plane.txt"
+            cache_path =self.rootpath + "cache\\laser_af_reference_plane.txt"
             try:
                 x_offset = None
                 y_offset = None
@@ -2985,7 +3043,7 @@ class LaserAutofocusController(QObject):
                         x_reference = self.x_reference+self.x_offset
                         break
                 cache_string = ",".join([str(x_offset),str(y_offset), str(width),str(height), str(pixel_to_um), str(x_reference)])
-                cache_path = Path("cache/laser_af_reference_plane.txt")
+                cache_path = Path(self.rootpath+ "cache\\laser_af_reference_plane.txt")
                 cache_path.parent.mkdir(parents=True, exist_ok=True)
                 cache_path.write_text(cache_string)
             except (FileNotFoundError, ValueError,IndexError) as e:
