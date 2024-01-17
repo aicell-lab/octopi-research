@@ -585,11 +585,14 @@ class NavigationController():
         else:
             self.theta_pos_rad = theta_pos*STAGE_POS_SIGN_THETA*(2*math.pi/(self.theta_microstepping*FULLSTEPS_PER_REV_THETA))
 
-
         if microcontroller.signal_joystick_button_pressed_event:
             print('joystick button pressed')
             microcontroller.signal_joystick_button_pressed_event = False
 
+        theta_pos=self.theta_pos_rad*360/(2*math.pi)
+
+        return self.x_pos_mm , self.y_pos_mm , self.z_pos_mm , theta_pos
+    
     def home_x(self):
         self.microcontroller.home_x()
 

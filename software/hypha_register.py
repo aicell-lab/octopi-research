@@ -173,8 +173,6 @@ class SquidController:
         # set the configuration of class liveController (LED mode, expore time, etc.)
         self.liveController.set_microscope_mode(self.configurationManager.configurations[0])
 
-
-
         # laser autofocus
         if SUPPORT_LASER_AUTOFOCUS:
 
@@ -193,6 +191,10 @@ class SquidController:
             # self.camera_focus.enable_callback()
             self.camera_focus.start_streaming()
         
+    def get_position(self, context=None):
+        """Get the current position of the stage."""
+        current_x, current_y, current_z, current_theta = self.navigationController.update_pos(microcontroller=self.microcontroller)
+        return current_x, current_y, current_z, current_theta
 
 
 
@@ -281,14 +283,12 @@ class VideoTransformTrack(MediaStreamTrack):
         return new_frame
 
 
-async def send_stage_position_periodically(data_channel, workspace=None, token=None):
+async def send_status(data_channel, workspace=None, token=None):
     while True:
         if data_channel and data_channel.readyState == "open":
-            current_x, current_y, current_z, current_theta = squidController.microcontroller.get_pos()
-            stage_location = {"x": current_x, "y": current_y, "z": current_z, "theta": current_theta}
-            data_channel.send(json.dumps(stage_location))
-        else:
-            print("Data channel is not available or not open.")
+            current_x, current_y, current_z, current_theta = squidController.get_position()
+            squid_status = {"x": current_x, "y": current_y, "z": current_z, "theta": current_theta}
+            data_channel.send(json.dumps(squid_status))
         await asyncio.sleep(1)  # Wait for 1 second before sending the next update
 
 
@@ -323,9 +323,9 @@ async def start_service(service_id, workspace=None, token=None):
             async def on_ended():
                 print(f"Track {track.kind} ended")
     
-        data_channel = peer_connection.createDataChannel("stageStatus")
+        data_channel = peer_connection.createDataChannel("microscopeStatus")
         # Start the task to send stage position periodically
-        asyncio.create_task(send_stage_position_periodically(data_channel))
+        asyncio.create_task(send_status(data_channel))
 
                 
 
@@ -363,14 +363,7 @@ async def start_service(service_id, workspace=None, token=None):
             time.sleep(0.005)
         print(f'The stage moved to position ({x},{y},{z})mm')
     
-    def get_position(context=None):
-        # Make sure the data channel is available
-        if squidController.data_channel:
-            current_x, current_y, current_z, current_theta = squidController.microcontroller.get_pos()
-            return current_x, current_y, current_z, current_theta
-        else:
-            print("Data channel is not available.")
-            return None, None, None, None
+
 
 
     def open_illumination(context=None):
@@ -388,7 +381,7 @@ async def start_service(service_id, workspace=None, token=None):
             },
             "type": "echo",
             "move": move_distance,
-            "current_position": get_position,
+            #"current_position": get_position,
             "snap": snap,
             "off_illumination": close_illumination,
             "on_illumination": open_illumination
