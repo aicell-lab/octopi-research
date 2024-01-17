@@ -9,11 +9,16 @@ def conf_attribute_reader(string_value):
     """
     :brief: standardized way for reading config entries
     that are strings, in priority order
-    dict/list (via json) -> int -> float -> string
+    None -> bool -> dict/list (via json) -> int -> float -> string
     REMEMBER TO ENCLOSE PROPERTY NAMES IN LISTS/DICTS IN
     DOUBLE QUOTES
     """
     actualvalue = str(string_value).strip()
+    try:
+        if str(actualvalue) == "None":
+            return None
+    except:
+        pass
     try:
         if str(actualvalue) == "True" or str(actualvalue) == "true":
             return True
@@ -358,6 +363,9 @@ MULTIPOINT_BF_SAVING_OPTION = 'Raw'
 # MULTIPOINT_BF_SAVING_OPTION = 'RGB2GRAY'
 # MULTIPOINT_BF_SAVING_OPTION = 'Green Channel Only'
 
+DEFAULT_MULTIPOINT_NX=1
+DEFAULT_MULTIPOINT_NY=1
+
 ENABLE_FLEXIBLE_MULTIPOINT = False
 
 CAMERA_SN = {'ch 1':'SN1','ch 2': 'SN2'} # for multiple cameras, to be overwritten in the configuration file
@@ -367,7 +375,7 @@ ENABLE_STROBE_OUTPUT = False
 Z_STACKING_CONFIG = 'FROM CENTER' # 'FROM BOTTOM', 'FROM TOP'
 
 # plate format
-WELLPLATE_FORMAT = 384
+WELLPLATE_FORMAT = 96
 
 # for 384 well plate
 X_MM_384_WELLPLATE_UPPERLEFT = 0
@@ -435,7 +443,20 @@ ENABLE_SPINNING_DISK_CONFOCAL=False
 ##########################################################
 #### start of loading machine specific configurations ####
 ##########################################################
-config_files = glob.glob('.' + '/' + 'configuration*.ini')
+#config_files = glob.glob('.' + '/' + 'configuration*.ini')
+
+try:
+    # Attempt to find .ini files using the original method
+    config_files = glob.glob('.' + '/' + 'configuration*.ini')
+    if not config_files:
+        # If no .ini files are found using the original method, fall back to the alternative method
+        raise FileNotFoundError
+except FileNotFoundError:
+    # Get the current directory of the script
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+    # Search for .ini files in the current directory
+    config_files = glob.glob(os.path.join(current_directory, '*.ini'))
+
 if config_files:
     if len(config_files) > 1:
         print('multiple machine configuration files found, the program will exit')

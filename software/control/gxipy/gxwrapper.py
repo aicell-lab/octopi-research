@@ -13,7 +13,11 @@ if sys.platform == 'linux2' or sys.platform == 'linux':
         print("Cannot find libgxiapi.so.")
 else:
     try:
-        dll = WinDLL('GxIAPI.dll')
+        import os
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        # Construct the absolute path to the DLL file in the same directory
+        dll_path = os.path.join(script_dir, 'GxIAPI.dll')
+        dll = WinDLL(dll_path)
     except OSError:
         print('Cannot find GxIAPI.dll.')
 

@@ -5,3 +5,12 @@
 cache/laser_af_reference_plane.txt
 software/hypha_register_demo.py
 software/control/gxipy/GxIAPI.dll
+software/hypha_register_demo.py
+software/control/gxipy/gxwrapper.py
+software/control/gxipy/GxIAPI.dll
+software/control/gui_hcs.py
+software/main_hcs.py
+cache/laser_af_reference_plane.txt
+software/control/core.py
+software/test.py
+

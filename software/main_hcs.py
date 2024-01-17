@@ -31,7 +31,18 @@ def show_acq_config(cfm):
 if __name__ == "__main__":
     legacy_config = False
     cf_editor_parser = ConfigParser()
-    config_files = glob.glob('.' + '/' + 'configuration*.ini')
+    #config_files = glob.glob('.' + '/' + 'configuration*.ini')
+    try:
+        # Attempt to find .ini files using the original method
+        config_files = glob.glob('.' + '/' + 'configuration*.ini')
+        if not config_files:
+            # If no .ini files are found using the original method, fall back to the alternative method
+            raise FileNotFoundError
+    except FileNotFoundError:
+        # Get the current directory of the script
+        current_directory = os.path.dirname(os.path.abspath(__file__))
+        # Search for .ini files in the current directory
+        config_files = glob.glob(os.path.join(current_directory, 'control/*.ini'))
     if config_files:
         if len(config_files) > 1:
             print('multiple machine configuration files found, the program will exit')

@@ -260,7 +260,7 @@ class PlateReadingController(QObject):
     def set_af_flag(self,flag):
         self.do_autofocus = flag
 
-    def set_crop(self,crop_width,height):
+    def set_crop(self,crop_width,crop_height):
         self.crop_width = crop_width
         self.crop_height = crop_height
 
@@ -269,7 +269,7 @@ class PlateReadingController(QObject):
 
     def start_new_experiment(self,experiment_ID): # @@@ to do: change name to prepare_folder_for_new_experiment
         # generate unique experiment ID
-        self.experiment_ID = experiment_ID + '_' + datetime.now().strftime('%Y-%m-%d_%H-%M-%-S.%f')
+        self.experiment_ID = experiment_ID + '_' #+ datetime.now().strftime('%Y-%m-%d_%H-%M-%-S.%f')
         self.recording_start_time = time.time()
         # create a new folder
         try:
