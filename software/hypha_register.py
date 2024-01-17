@@ -43,7 +43,7 @@ class SquidController:
 
     def __init__(self,is_simulation = True, *args, **kwargs):
         super().__init__(*args,**kwargs)
-
+        self.data_channel = None
         #load objects
         if is_simulation:
             if ENABLE_SPINNING_DISK_CONFOCAL:
@@ -164,10 +164,10 @@ class SquidController:
         # self.camera.set_reverse_x(CAMERA_REVERSE_X) # these are not implemented for the cameras in use
         # self.camera.set_reverse_y(CAMERA_REVERSE_Y) # these are not implemented for the cameras in use
         self.camera.set_software_triggered_acquisition() #self.camera.set_continuous_acquisition()
-        # self.camera.set_callback(self.streamHandler.on_new_frame)
+        self.camera.set_callback(self.streamHandler.on_new_frame)
         # self.camera.enable_callback()
         # # camera
-        # self.camera.set_callback(self.streamHandler.on_new_frame)
+
         self.camera.start_streaming()
 
         # set the configuration of class liveController (LED mode, expore time, etc.)
@@ -238,7 +238,7 @@ class AsyncioThread(QThread):
         self.loop.run_forever()
 
 
-squidController= SquidController(is_simulation=False)
+squidController= SquidController(is_simulation=True)
 #navigationController = squidController.navigationController
 squidController.microcontroller.turn_off_illumination()
 def gray_to_rgb(gray_img):
@@ -275,8 +275,24 @@ class VideoTransformTrack(MediaStreamTrack):
         new_frame.pts = self.count # frame.pts
         self.count+=1
         new_frame.time_base = fractions.Fraction(1, 1000)
+
+        
         await asyncio.sleep(1)
         return new_frame
+
+
+async def send_stage_position_periodically(data_channel, workspace=None, token=None):
+    while True:
+        if data_channel and data_channel.readyState == "open":
+            current_x, current_y, current_z, current_theta = squidController.microcontroller.get_pos()
+            stage_location = {"x": current_x, "y": current_y, "z": current_z, "theta": current_theta}
+            data_channel.send(json.dumps(stage_location))
+        else:
+            print("Data channel is not available or not open.")
+        await asyncio.sleep(1)  # Wait for 1 second before sending the next update
+
+
+
 
 async def start_service(service_id, workspace=None, token=None):
     client_id = service_id + "-client"
@@ -298,13 +314,19 @@ async def start_service(service_id, workspace=None, token=None):
         @peer_connection.on("track")
         def on_track(track):
             print(f"Track {track.kind} received")
-            #squidController.microcontroller.turn_on_illumination()
+
             peer_connection.addTrack(
                 VideoTransformTrack()
             )
+         
             @track.on("ended")
             async def on_ended():
                 print(f"Track {track.kind} ended")
+    
+        data_channel = peer_connection.createDataChannel("stageStatus")
+        # Start the task to send stage position periodically
+        asyncio.create_task(send_stage_position_periodically(data_channel))
+
                 
 
 
@@ -340,6 +362,16 @@ async def start_service(service_id, workspace=None, token=None):
         while squidController.microcontroller.is_busy():
             time.sleep(0.005)
         print(f'The stage moved to position ({x},{y},{z})mm')
+    
+    def get_position(context=None):
+        # Make sure the data channel is available
+        if squidController.data_channel:
+            current_x, current_y, current_z, current_theta = squidController.microcontroller.get_pos()
+            return current_x, current_y, current_z, current_theta
+        else:
+            print("Data channel is not available.")
+            return None, None, None, None
+
 
     def open_illumination(context=None):
         squidController.microcontroller.turn_on_illumination()
@@ -356,6 +388,7 @@ async def start_service(service_id, workspace=None, token=None):
             },
             "type": "echo",
             "move": move_distance,
+            "current_position": get_position,
             "snap": snap,
             "off_illumination": close_illumination,
             "on_illumination": open_illumination
