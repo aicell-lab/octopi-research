@@ -28,14 +28,10 @@ from imjoy_rpc.hypha import login, connect_to_server, register_rtc_service
 #from imjoy_rpc.hypha.sync import register_rtc_service
 #import aiortc
 from aiortc import MediaStreamTrack, RTCPeerConnection, RTCSessionDescription, RTCConfiguration
-from PyQt5.QtCore import QThread, pyqtSignal
-
 from aiortc.contrib.media import MediaPlayer, MediaRelay, MediaStreamTrack
 from aiortc.rtcrtpsender import RTCRtpSender
 from av import VideoFrame
 import fractions
-
-import webbrowser
 
 class SquidController:
     # variables
@@ -169,8 +165,6 @@ class SquidController:
         # set the configuration of class liveController (LED mode, expore time, etc.)
         self.liveController.set_microscope_mode(self.configurationManager.configurations[0])
 
-
-
         # laser autofocus
         if SUPPORT_LASER_AUTOFOCUS:
 
@@ -204,17 +198,12 @@ class SquidController:
                 location_list = np.append(location_list, [[x, y, z]], axis=0)
         return location_list
 
-
-
-
     def plate_scan(self,action_ID='01'):
         # start the acquisition loop
         location_list = self.get_location_list(rows=3,cols=3)
-        print(location_list)
         self.multipointController.set_base_path(DEFAULT_SAVING_PATH)
         self.multipointController.set_selected_configurations(self.channel_names)
         self.multipointController.do_autofocus = True
-
         self.multipointController.start_new_experiment(action_ID)
         self.multipointController.run_acquisition_reef(location_list=location_list)
         
@@ -249,6 +238,3 @@ if __name__ == "__main__":
     squid = SquidController(is_simulation = True)
     squid.plate_scan()
     squid.close()
-
-
-	
