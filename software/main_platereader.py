@@ -20,8 +20,8 @@ if __name__ == "__main__":
 
     app = QApplication([])
     if(args.simulation):
-    	win = gui.OctopiGUI(is_simulation = True)
+        win = gui.OctopiGUI(is_simulation = True)
     else:
-    	win = gui.OctopiGUI()
+        win = gui.OctopiGUI(is_simulation = True)
     win.show()
     app.exec_() #sys.exit(app.exec_())
