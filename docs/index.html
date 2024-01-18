@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/imjoy-rpc@0.5.36/dist/hypha-rpc-websocket.min.js"></script>
+    <script src="https://lib.imjoy.io/imjoy-loader.js"></script>
     <style>
         body,
         html {
@@ -127,9 +128,88 @@
 
         
     </div>
-    
+    <div id="window-container"></div>
+    <div id="menu-container"></div>
 
     <script>
+        function setupImJoyApp(){
+            loadImJoyBasicApp({
+                process_url_query: true,
+                show_window_title: false,
+                show_progress_bar: true,
+                show_empty_window: true,
+                menu_style: { position: "absolute", right: 0, top: "2px" },
+                window_style: {width: '100%', height: '100%'},
+                main_container: null,
+                menu_container: "menu-container",
+                window_manager_container: "window-container",
+                imjoy_api: { } // override some imjoy API functions here
+            }).then(async app => {
+                // get the api object from the root plugin
+                const api = app.imjoy.api;
+                // if you want to let users to load new plugins, add a menu item
+                app.addMenuItem({
+                    label: "➕ Load Plugin",
+                    callback() {
+                    const uri = prompt(
+                        `Please type a ImJoy plugin URL`,
+                        "https://github.com/imjoy-team/imjoy-plugins/blob/master/repository/ImageAnnotator.imjoy.html"
+                    );
+                    if (uri) app.loadPlugin(uri);
+                    },
+                });
+                // add a menu item to show the plugin info
+                app.addMenuItem({
+                    label: "BioImage.IO Chatbot",
+                    async callback() {
+                        const chatbot = await api.createWindow({src: "https://chat.bioimage.io/public/apps/bioimageio-chatbot-client/index"})
+                        await chatbot.registerExtension({
+                            _rintf: true,
+                            name: "MoveMicroscopeStage",
+                            description: "Move the microscope stage to a specific location",
+                            async get_schema() {
+                              // you can also generate the json schema in Python
+                              // if you have a pydantic class named MoveMicroscopeStage
+                              // you can use MoveMicroscopeStage.schema() to get the schema
+                              return {
+                                type: "object",
+                                title: "MoveMicroscopeStage",
+                                description: "Move the microscope stage",
+                                properties: {
+                                    x: {
+                                        type: "number",
+                                        title: "X",
+                                        description: "X",
+                                        default: 0,
+                                    },
+                                    y: {
+                                        type: "number",
+                                        title: "Y",
+                                        description: "Y",
+                                        default: 0,
+                                    },
+                                    z: {
+                                        type: "number",
+                                        title: "Z",
+                                        description: "Z",
+                                        default: 0,
+                                    },
+                                },
+                              };
+                            },
+                            async execute(config) {
+                                console.log('move stage', config)
+                                window.methods.moveMicroscope('x', config.x)
+                                window.methods.moveMicroscope('y', config.y)
+                                window.methods.moveMicroscope('z', config.z)
+                            },
+                          })
+                    },
+                });
+
+            
+            });
+        }
         const queryString = window.location.search;
         const urlParams = new URLSearchParams(queryString);
 
@@ -294,6 +374,9 @@
             }
 
         };
+        document.addEventListener('DOMContentLoaded', function() {
+            setupImJoyApp();
+        });
     </script>
 </body>
 
