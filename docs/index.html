@@ -95,7 +95,10 @@
                     <span id="startStopIcon" class="fas fa-play"></span>
                 </button>
                 <br>
-
+                <button class="btn btn-secondary mb-2" onclick="window.methods.moveMicroscope('y', 1)"><i class="fas fa-arrow-up"></i></button>
+                <div class="d-flex justify-content-between">
+                    <button class="btn btn-secondary mr-2" onclick="window.methods.moveMicroscope('x', -1)"><i class="fas fa-arrow-left"></i></button>
+                    <button class="btn btn-secondary ml-2" onclick="window.methods.moveMicroscope('x', 1)"><i class="fas fa-arrow-right"></i></button>
                 </div>
                 <button class="btn btn-secondary mt-2" onclick="window.methods.moveMicroscope('y', -1)"><i class="fas fa-arrow-down"></i></button>
                 <button id="toggleLightButton" class="btn btn-warning mt-2" onclick="window.methods.toggleLight()">
