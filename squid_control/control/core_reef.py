@@ -1997,11 +1997,17 @@ class LaserAutofocusController(QObject):
         self.spot_spacing_pixels = None # spacing between the spots from the two interfaces (unit: pixel)
         
         self.look_for_cache = look_for_cache
-        self.rootpath='c:\\Users\\songtao.cheng\\Documents\\codes-in-KTH\\imaging-farm\\squid-control\\squid-control\\'
+        
+        
         if look_for_cache:
-            cache_path = self.rootpath+ "cache\\laser_af_reference_plane.txt"
+            # Directory of the current script (core_reef.py)
+            current_script_dir = os.path.dirname(os.path.abspath(__file__))
+
+            # Path to the laser_af_reference_plane.txt in the same directory
+            laser_chche_path = os.path.join(current_script_dir, 'laser_af_reference_plane.txt')
+
             try:
-                with open(cache_path, "r") as cache_file:
+                with open(laser_chche_path, "r") as cache_file:
                     for line in cache_file:
                         value_list = line.split(",")
                         x_offset = float(value_list[0])
@@ -2020,9 +2026,12 @@ class LaserAutofocusController(QObject):
     def initialize_manual(self, x_offset, y_offset, width, height, pixel_to_um, x_reference, write_to_cache=True):
         cache_string = ",".join([str(x_offset),str(y_offset), str(width),str(height), str(pixel_to_um), str(x_reference)])
         if write_to_cache:
-            cache_path = Path(self.rootpath + "cache\\laser_af_reference_plane.txt")
-            cache_path.parent.mkdir(parents=True, exist_ok=True)
-            cache_path.write_text(cache_string)
+            # Directory of the current script (core_reef.py)
+            current_script_dir = os.path.dirname(os.path.abspath(__file__))
+            # Path to the laser_af_reference_plane.txt in the same directory
+            laser_chche_path = os.path.join(current_script_dir, 'laser_af_reference_plane.txt')
+            laser_chche_path = Path(laser_chche_path)
+            laser_chche_path.write_text(cache_string)
         # x_reference is relative to the full sensor
         self.pixel_to_um = pixel_to_um
         self.x_offset = int((x_offset//8)*8)

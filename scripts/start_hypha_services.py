@@ -13,14 +13,10 @@ if SUPPORT_LASER_AUTOFOCUS:
 import pyqtgraph.dockarea as dock
 import time
 
-import cv2
-import threading
 import argparse
 import asyncio
 import os
-import uuid
 import fractions
-import tifffile as tif
 
 import numpy as np
 #from av import VideoFrame
