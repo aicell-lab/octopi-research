@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC demo</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/imjoy-rpc@0.5.36/dist/hypha-rpc-websocket.min.js"></script>
+    <style>
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        #app {
+            padding: 20px;
+        }
+
+        #title {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+        }
+
+        #media {
+            max-width: 1280px;
+            height: 50vh;
+            position: relative;
+        }
+
+        audio,
+        video {
+            width: 100%;
+            height: 50vh;
+        }
+
+        #viewer-section {
+            max-width: 800px;
+            margin-top: 20px;
+        }
+
+        .viewer-container {
+            position: relative;
+        }
+
+        #control-panel {
+            position: absolute;
+            z-index: 10;
+            top: 60px;
+            right: 10px;
+            width: 100px;
+            height: 100px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+        }
+
+        #control-panel .btn-group {
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <h1 id="title" class="text-center mb-4">WebRTC Hypha Demo</h1>
+        <div class="form-group">
+            <label for="service-id">WebRTC service id: </label>
+            <input id="service-id" type="text" value="squid-control" class="form-control" />
+        </div>
+        <div class="d-flex justify-content-center mb-3">
+            <div class="form-group">
+                <label for="x-move">X Movement (mm): </label>
+                <input id="x-move" type="number" value="1" class="form-control" />
+            </div>
+            <div class="form-group">
+                <label for="y-move">Y Movement (mm): </label>
+                <input id="y-move" type="number" value="1" class="form-control" />
+            </div>
+            <div class="form-group">
+                <label for="z-move">Z Movement (mm): </label>
+                <input id="z-move" type="number" value="1" class="form-control" />
+            </div>
+                
+        </div>
+        <div id="viewer-section" class="position-relative">
+            <div id="control-panel" class="d-flex flex-column align-items-center justify-content-center">
+                <button id="startStopButton" class="btn btn-primary" onclick="window.methods.toggleLive()">
+                    <span id="startStopIcon" class="fas fa-play"></span>
+                </button>
+                <br>
+
+                </div>
+                <button class="btn btn-secondary mt-2" onclick="window.methods.moveMicroscope('y', -1)"><i class="fas fa-arrow-down"></i></button>
+                <button id="toggleLightButton" class="btn btn-warning mt-2" onclick="window.methods.toggleLight()">
+                    <span id="toggleLightIcon" class="fas fa-lightbulb"></span>
+                </button>
+
+                
+            </div>
+
+            <div id="media" class="shadow-lg">
+                <audio id="audio" autoplay="true"></audio>
+                <video id="video" autoplay="true" playsinline="true"></video>
+               
+            </div>
+            </div>
+            <svg id="well-plate-svg" style="width: 300px; height: 200px;"> <!-- Adjust size as needed -->
+                <image href="images/96-Well_plate.svg" width="100%" height="100%"/>
+                
+                <circle id="stage-indicator" cx="120" cy="100" r="9" fill="red" visibility="visible"/> <!-- Red dot -->
+            </svg>
+            <label for="current_location">Current location of stage </label>
+            
+        </div>
+
+    
+
+        
+    </div>
+    
+
+    <script>
+        const queryString = window.location.search;
+        const urlParams = new URLSearchParams(queryString);
+
+        if (urlParams.get('service_id')) {
+            document.getElementById('service-id').value = urlParams.get('service_id');
+        }
+
+        function assert(condition, message) {
+            if (!condition) {
+                throw new Error(message || "Assertion failed");
+            }
+        }
+
+        // Function to update the position of the red dot
+        function updateStageIndicator(x, y) {
+            const stageIndicator = document.getElementById('stage-indicator');
+            stageIndicator.setAttribute('cx', x);
+            stageIndicator.setAttribute('cy', y);
+            stageIndicator.setAttribute('visibility', 'visible');
+        }
+
+        let pc;
+        window.methods = {
+            liveRunning: false,
+
+            toggleLive: async function() {
+                const button = document.getElementById('startStopButton');
+                const icon = document.getElementById('startStopIcon');
+
+                if (!this.liveRunning) {
+                    button.classList.remove('btn-primary');
+                    button.classList.add('btn-danger');
+                    icon.classList.remove('fa-play');
+                    icon.classList.add('fa-stop');
+                    button.disabled = true;
+                    await this.start();
+                    button.disabled = false;
+                } else {
+                    button.classList.remove('btn-danger');
+                    button.classList.add('btn-primary');
+                    icon.classList.remove('fa-stop');
+                    icon.classList.add('fa-play');
+                    this.stop();
+                }
+
+                this.liveRunning = !this.liveRunning;
+            },
+
+            start: async function() {
+                const hostCanvas = document.createElement('canvas');
+                const service_id = document.getElementById('service-id').value;
+                const server = await hyphaWebsocketClient.connectToServer({ "name": "js-client", "server_url": "https://ai.imjoy.io", "method_timeout": 10 })
+                async function on_init(peerConnection){
+                    // connect audio / video
+                    peerConnection.addEventListener('track', function (evt) {
+                        if (evt.track.kind == 'video')
+                            document.getElementById('video').srcObject = evt.streams[0];
+                        else
+                            document.getElementById('audio').srcObject = evt.streams[0];
+                    });
+
+                    const frameRate = 20;
+                    // need to call getContext for Firefox: https://bugzilla.mozilla.org/show_bug.cgi?id=1572422
+                    const context = hostCanvas.getContext('2d');
+                    const stream = hostCanvas.captureStream(frameRate);
+                    for(let track of stream.getVideoTracks()){
+                        await peerConnection.addTrack(track, stream);
+                    };
+
+                    // send stage location to the other side
+                    peerConnection.addEventListener('datachannel', event => {
+                        const dataChannel = event.channel;
+
+                        if (dataChannel.label === "microscopeStatus") {
+                            dataChannel.onopen = () => console.log('Data channel for stageStatus is open');
+                            dataChannel.onclose = () => console.log('Data channel for stageStatus is closed');
+                            dataChannel.onmessage = e => {
+                                try {
+                                    const squidStatus = JSON.parse(e.data);
+                                    console.log('microscope status:', squidStatus);
+                                    updateStageIndicator(squidStatus.x, squidStatus.y);
+                                } catch (error) {
+                                    console.error('Error parsing stage location data:', error);
+                                }
+                            };
+                        }
+                    });
+
+
+                }
+                
+                pc = await hyphaWebsocketClient.getRTCService(
+                    server,
+                    service_id,
+                    {on_init},
+                );
+                // now we can access the services using the webrtc peer-to-peer connection
+                // the rpc calls will go through webrtc instead of the websocket
+                const mc = await pc.get_service("microscope-control-squid");
+                console.log('==========microscope control=========>', mc)
+                // expose it to window so the button click can call it
+                window.microscopeControl = mc;
+            },
+
+            stop: function() {
+                pc.close();
+                //window.microscopeControl.off_illumination({_rkwargs: true});
+            },
+        
+            lightOn: false,
+
+            toggleLight: async function() {
+                const button = document.getElementById('toggleLightButton');
+                const icon = document.getElementById('toggleLightIcon');
+                // Check if microscopeControl is initialized, if not, call start
+                if (!window.microscopeControl) {
+                    await this.start();
+                }
+                if (!this.lightOn) {
+                    button.classList.add('btn-success');
+                    button.classList.remove('btn-warning');
+                    icon.classList.add('fa-lightbulb-on');
+                    icon.classList.remove('fa-lightbulb');
+                    await window.microscopeControl.on_illumination({_rkwargs: true});
+                } else {
+                    button.classList.add('btn-warning');
+                    button.classList.remove('btn-success');
+                    icon.classList.remove('fa-lightbulb-on');
+                    icon.classList.add('fa-lightbulb');
+                    await window.microscopeControl.off_illumination({_rkwargs: true});
+                }
+
+                this.lightOn = !this.lightOn;
+            },
+
+            moveMicroscope: function(direction, multiplier) {
+                if (!window.microscopeControl) {
+                    console.error("Microscope control is not initialized.");
+                    return;
+                }
+                const xMove = parseFloat(document.getElementById('x-move').value);
+                const yMove = parseFloat(document.getElementById('y-move').value);
+                const zMove = parseFloat(document.getElementById('z-move').value); // If Z movement is needed
+                let moveX = 0, moveY = 0, moveZ = 0;
+
+                if (isNaN(xMove) || isNaN(yMove) || isNaN(zMove)) {
+                    console.error("Invalid movement parameters.");
+                    return;
+                }
+
+                if (direction === 'x') {
+                    moveX = xMove * multiplier;
+                } else if (direction === 'y') {
+                    moveY = yMove * multiplier;
+                }
+                // Example of handling Z movement
+                // if (direction === 'z') {
+                //     moveZ = zMove * multiplier;
+                // }
+
+                window.microscopeControl.move({x: moveX, y: moveY, z: moveZ, _rkwargs: true});
+            }
+
+        };
+    </script>
+</body>
+
+</html>
