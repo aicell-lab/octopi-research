@@ -1607,7 +1607,7 @@ class MultiPointController():
 
     def start_new_experiment(self,experiment_ID): # @@@ to do: change name to prepare_folder_for_new_experiment
         # generate unique experiment ID
-        self.experiment_ID = experiment_ID.replace(' ','_') + '_' #+ datetime.now().strftime('%Y-%m-%d_%H-%M-%-S.%f')
+        self.experiment_ID = experiment_ID.replace(' ','_') + '_' + datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
         self.recording_start_time = time.time()
         # create a new folder
         os.mkdir(os.path.join(self.base_path,self.experiment_ID))
