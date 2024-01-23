@@ -275,4 +275,11 @@ def find_centroid_many(image,contour_area_min,contour_area_max):
             count+=1
     return last_centroids,count
 '''
+def gray_to_rgb(gray_img):
+    # Add a third dimension to the gray image
+    if len(gray_img.shape) == 2:
+        gray_img = gray_img[:, :, np.newaxis]
 
+    # Convert the gray image to a 3-channel RGB image
+    rgb_img = np.repeat(gray_img, 3, axis=2)
+    return rgb_img

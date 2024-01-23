@@ -1,21 +1,13 @@
 import os 
-# app specific libraries
-import squid_control.control.camera as camera
-import squid_control.control.core_reef as core
-import squid_control.control.microcontroller as microcontroller
-from squid_control.control._def import *
 import logging
-import squid_control.control.serial_peripherals as serial_peripherals
+import squid_control.control.utils_.image_processing as im_processing
 
-if SUPPORT_LASER_AUTOFOCUS:
-    import squid_control.control.core_displacement_measurement as core_displacement_measurement
 
 import pyqtgraph.dockarea as dock
 import time
 
 import argparse
 import asyncio
-import os
 import fractions
 
 import numpy as np
@@ -24,229 +16,19 @@ from imjoy_rpc.hypha import login, connect_to_server, register_rtc_service
 #from imjoy_rpc.hypha.sync import register_rtc_service
 #import aiortc
 from aiortc import MediaStreamTrack, RTCPeerConnection, RTCSessionDescription, RTCConfiguration
-from PyQt5.QtCore import QThread, pyqtSignal
 
 from aiortc.contrib.media import MediaPlayer, MediaRelay, MediaStreamTrack
 from aiortc.rtcrtpsender import RTCRtpSender
 from av import VideoFrame
 import fractions
-
+import json
 import webbrowser
 
-class SquidController:
-    # variables
-    fps_software_trigger= 100
+from squid_controller import SquidController
 
-    def __init__(self,is_simulation = True, *args, **kwargs):
-        super().__init__(*args,**kwargs)
-        self.data_channel = None
-        #load objects
-        if is_simulation:
-            if ENABLE_SPINNING_DISK_CONFOCAL:
-                self.xlight = serial_peripherals.XLight_Simulation()
-            if SUPPORT_LASER_AUTOFOCUS:
-                self.camera = camera.Camera_Simulation(rotate_image_angle = ROTATE_IMAGE_ANGLE, flip_image=FLIP_IMAGE)
-                self.camera_focus = camera.Camera_Simulation()
-            else:
-                self.camera = camera.Camera_Simulation(rotate_image_angle = ROTATE_IMAGE_ANGLE, flip_image=FLIP_IMAGE)
-            self.microcontroller = microcontroller.Microcontroller_Simulation()
-        else:
-            if ENABLE_SPINNING_DISK_CONFOCAL:
-                self.xlight = serial_peripherals.xlight()
-            try:
-                if SUPPORT_LASER_AUTOFOCUS:
-                    sn_camera_main = camera.get_sn_by_model(MAIN_CAMERA_MODEL)
-                    sn_camera_focus = camera.get_sn_by_model(FOCUS_CAMERA_MODEL)
-                    self.camera = camera.Camera(sn=sn_camera_main,rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-                    self.camera.open()
-                    self.camera_focus = camera.Camera(sn=sn_camera_focus)
-                    self.camera_focus.open()
-                else:
-                    self.camera = camera.Camera(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-                    self.camera.open()
-            except:
-                if SUPPORT_LASER_AUTOFOCUS:
-                    self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-                    self.camera.open()
-                    self.camera_focus = camera.Camera_Simulation()
-                    self.camera_focus.open()
-                else:
-                    self.camera = camera.Camera_Simulation(rotate_image_angle=ROTATE_IMAGE_ANGLE,flip_image=FLIP_IMAGE)
-                    self.camera.open()
-                print('! camera not detected, using simulated camera !')
-            self.microcontroller = microcontroller.Microcontroller(version=CONTROLLER_VERSION)
-
-        # reset the MCU
-        self.microcontroller.reset()
-
-        # reinitialize motor deivers and DAC  (in particular for V2.1 driver board where PG is not functional)
-        self.microcontroller.initialize_drivers()
-        
-        # configure the actuators
-        self.microcontroller.configure_actuators()
-
-        self.configurationManager = core.ConfigurationManager(filename='./channel_configurations.xml')
-
-        self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
-        self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
-        self.navigationController = core.NavigationController(self.microcontroller)
-        self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController,is_for_wellplate=True)
-        self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
-        self.scanCoordinates = core.ScanCoordinates()
-        self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates,parent=self)
-        if ENABLE_TRACKING:
-            self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
-        
-        def init_stage(self):
-            # retract the object
-            self.navigationController.home_z()
-            # wait for the operation to finish
-            t0 = time.time()
-            while self.microcontroller.is_busy():
-                time.sleep(0.005)
-                if time.time() - t0 > 10:
-                    print('z homing timeout, the program will exit')
-                    exit()
-            print('objective retracted')
-            self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
-
-            # home XY, set zero and set software limit
-            print('home xy')
-            timestamp_start = time.time()
-            # x needs to be at > + 20 mm when homing y
-            self.navigationController.move_x(20) # to-do: add blocking code
-            while self.microcontroller.is_busy():
-                time.sleep(0.005)
-            # home y
-            self.navigationController.home_y()
-            t0 = time.time()
-            while self.microcontroller.is_busy():
-                time.sleep(0.005)
-                if time.time() - t0 > 10:
-                    print('y homing timeout, the program will exit')
-                    exit()
-            self.navigationController.zero_y()
-            # home x
-            self.navigationController.home_x()
-            t0 = time.time()
-            while self.microcontroller.is_busy():
-                time.sleep(0.005)
-                if time.time() - t0 > 10:
-                    print('y homing timeout, the program will exit')
-                    exit()
-            self.navigationController.zero_x()
-            self.slidePositionController.homing_done = True
-
-            # move to scanning position
-            self.navigationController.move_x(20)
-            while self.microcontroller.is_busy():
-                time.sleep(0.005)
-            self.navigationController.move_y(20)
-            while self.microcontroller.is_busy():
-                time.sleep(0.005)
-
-            # move z
-            self.navigationController.move_z_to(DEFAULT_Z_POS_MM)
-            # wait for the operation to finish
-            t0 = time.time() 
-            while self.microcontroller.is_busy():
-                time.sleep(0.005)
-                if time.time() - t0 > 5:
-                    print('z return timeout, the program will exit')
-                    exit()
-
-        # open the camera
-        # camera start streaming
-        # self.camera.set_reverse_x(CAMERA_REVERSE_X) # these are not implemented for the cameras in use
-        # self.camera.set_reverse_y(CAMERA_REVERSE_Y) # these are not implemented for the cameras in use
-        self.camera.set_software_triggered_acquisition() #self.camera.set_continuous_acquisition()
-        self.camera.set_callback(self.streamHandler.on_new_frame)
-        # self.camera.enable_callback()
-        # # camera
-
-        self.camera.start_streaming()
-
-        # set the configuration of class liveController (LED mode, expore time, etc.)
-        self.liveController.set_microscope_mode(self.configurationManager.configurations[0])
-
-        # laser autofocus
-        if SUPPORT_LASER_AUTOFOCUS:
-
-            # controllers
-            self.configurationManager_focus_camera = core.ConfigurationManager(filename='./focus_camera_configurations.xml')
-            self.streamHandler_focus_camera = core.StreamHandler()
-            self.liveController_focus_camera = core.LiveController(self.camera_focus,self.microcontroller,self.configurationManager_focus_camera,control_illumination=False,for_displacement_measurement=True)
-            self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates,parent=self)
-            
-            self.displacementMeasurementController = core_displacement_measurement.DisplacementMeasurementController()
-            self.laserAutofocusController = core.LaserAutofocusController(self.microcontroller,self.camera_focus,self.liveController_focus_camera,self.navigationController,has_two_interfaces=HAS_TWO_INTERFACES,use_glass_top=USE_GLASS_TOP)
-
-            # camera
-            self.camera_focus.set_software_triggered_acquisition() #self.camera.set_continuous_acquisition()
-            # self.camera_focus.set_callback(self.streamHandler_focus_camera.on_new_frame)
-            # self.camera_focus.enable_callback()
-            self.camera_focus.start_streaming()
-        
-    def get_position(self, context=None):
-        """Get the current position of the stage."""
-        current_x, current_y, current_z, current_theta = self.navigationController.update_pos(microcontroller=self.microcontroller)
-        return current_x, current_y, current_z, current_theta
-
-
-
-    def closeEvent(self, event):
-
-        # move the objective to a defined position upon exit
-        self.navigationController.move_x(0.1) # temporary bug fix - move_x needs to be called before move_x_to if the stage has been moved by the joystick
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-        self.navigationController.move_x_to(30)
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-        self.navigationController.move_y(0.1) # temporary bug fix - move_y needs to be called before move_y_to if the stage has been moved by the joystick
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-        self.navigationController.move_y_to(30)
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-
-        self.liveController.stop_live()
-        self.camera.close()
-        self.imageSaver.close()
-        self.imageDisplay.close()
-        if SUPPORT_LASER_AUTOFOCUS:
-            self.camera_focus.close()
-            #self.imageDisplayWindow_focus.close()
-        self.microcontroller.close()
-
-
-
-
-
-class AsyncioThread(QThread):
-    started = pyqtSignal()
-
-    def __init__(self, loop):
-        super().__init__()
-        self.loop = loop
-
-    def run(self):
-        asyncio.set_event_loop(self.loop)
-        self.started.emit()
-        self.loop.run_forever()
 
 
 squidController= SquidController(is_simulation=True)
-#navigationController = squidController.navigationController
-squidController.microcontroller.turn_off_illumination()
-def gray_to_rgb(gray_img):
-    # Add a third dimension to the gray image
-    if len(gray_img.shape) == 2:
-        gray_img = gray_img[:, :, np.newaxis]
-
-    # Convert the gray image to a 3-channel RGB image
-    rgb_img = np.repeat(gray_img, 3, axis=2)
-    return rgb_img
 
 class VideoTransformTrack(MediaStreamTrack):
     """
@@ -261,31 +43,186 @@ class VideoTransformTrack(MediaStreamTrack):
 
 
     async def recv(self):
-        
-        squidController.camera.send_trigger()
-        gray_img = squidController.camera.read_frame()
-        
-        rgb_img = gray_to_rgb(gray_img)
-
+        # Read frame from squid controller
+        rgb_img = snap()
         # Create the video frame
         new_frame = VideoFrame.from_ndarray(rgb_img, format="bgr24")
-
         new_frame.pts = self.count # frame.pts
         self.count+=1
         new_frame.time_base = fractions.Fraction(1, 1000)
-
-        
         await asyncio.sleep(1)
         return new_frame
 
 
 async def send_status(data_channel, workspace=None, token=None):
+    """
+    Send the current status of the microscope to the client. User can dump information of the microscope to a json data.
+    ----------------------------------------------------------------
+    Parameters
+    ----------
+    data_channel : aiortc.DataChannel
+        The data channel to send the status to.
+    workspace : str, optional
+        The workspace to use. The default is None.
+    token : str, optional
+        The token to use. The default is None.
+
+    Returns
+    -------
+    None.
+    """
     while True:
         if data_channel and data_channel.readyState == "open":
-            current_x, current_y, current_z, current_theta = squidController.get_position()
+            current_x, current_y, current_z, current_theta = get_position()
             squid_status = {"x": current_x, "y": current_y, "z": current_z, "theta": current_theta}
             data_channel.send(json.dumps(squid_status))
         await asyncio.sleep(1)  # Wait for 1 second before sending the next update
+
+
+def move_by_distance(x,y,z, context=None):
+    """
+    Move the stage by a distance in x,y,z axis.
+    ----------------------------------------------------------------
+    Parameters
+    ----------
+    x : float
+        The distance to move in x axis.
+    y : float
+        The distance to move in y axis.
+    z : float
+        The distance to move in z axis.
+    context : dict, optional
+            The context is a dictionary contains the following keys:
+                - login_url: the login URL
+                - report_url: the report URL
+                - key: the key for the login
+    """
+    squidController.navigationController.move_x(x)
+    while squidController.microcontroller.is_busy():
+        time.sleep(0.005)
+    squidController.navigationController.move_y(y)
+    while squidController.microcontroller.is_busy():
+        time.sleep(0.005)
+    squidController.navigationController.move_z(z)
+    while squidController.microcontroller.is_busy():
+        time.sleep(0.005)
+    print(f'The stage moved ({x},{y},{z})mm through x,y,z axis')
+
+
+        
+def move_to_position(x,y,z, context=None):
+    """
+    Move the stage to a position in x,y,z axis.
+    ----------------------------------------------------------------
+    Parameters
+    ----------
+    x : float
+        The distance to move in x axis.
+    y : float
+        The distance to move in y axis.
+    z : float
+        The distance to move in z axis.
+    context : dict, optional
+            The context is a dictionary contains keys:
+                - login_url: the login URL
+                - report_url: the report URL
+                - key: the key for the login
+            For detailes, see: https://ha.amun.ai/#/
+
+    """
+    squidController.navigationController.move_x_to(x)
+    while squidController.microcontroller.is_busy():
+        time.sleep(0.005)
+    squidController.navigationController.move_y_to(y)
+    while squidController.microcontroller.is_busy():
+        time.sleep(0.005)
+    squidController.navigationController.move_z_to(z)
+    while squidController.microcontroller.is_busy():
+        time.sleep(0.005)
+    print(f'The stage moved to position ({x},{y},{z})mm')
+
+
+def get_position(context=None):
+    """
+    Get the current position of the stage.
+    ----------------------------------------------------------------
+    Parameters
+    ----------
+        context : dict, optional
+            The context is a dictionary contains keys:
+                - login_url: the login URL
+                - report_url: the report URL
+                - key: the key for the login
+            For detailes, see: https://ha.amun.ai/#/
+
+    Returns
+    -------
+    current_x : float
+        The current position of the stage in x axis.
+    current_y : float
+        The current position of the stage in y axis.
+    current_z : float
+        The current position of the stage in z axis.
+    current_theta : float
+        The current position of the stage in theta axis.
+
+    """
+    current_x, current_y, current_z, current_theta = squidController.navigationController.update_pos(microcontroller=squidController.microcontroller)
+    return current_x, current_y, current_z, current_theta
+
+def snap(context=None):
+    """
+    Get the current frame from the camera.
+    ----------------------------------------------------------------
+    Parameters
+    ----------
+    context : dict, optional
+        The context is a dictionary contains keys:
+            - login_url: the login URL
+            - report_url: the report URL
+            - key: the key for the login
+        For detailes, see: https://ha.amun.ai/#/
+
+    Returns
+    -------
+    rgb_img : numpy.ndarray
+        The current frame from the camera transfered to RGB image.
+    """
+    squidController.camera.send_trigger()
+    gray_img = squidController.camera.read_frame()
+    rgb_img = im_processing.gray_to_rgb(gray_img)
+    return rgb_img
+
+
+def open_illumination(context=None):
+    """
+    Turn on the bright field illumination.
+    ----------------------------------------------------------------
+    Parameters
+    ----------
+    context : dict, optional
+        The context is a dictionary contains keys:
+            - login_url: the login URL
+            - report_url: the report URL
+            - key: the key for the login
+        For detailes, see: https://ha.amun.ai/#/
+    """
+    squidController.microcontroller.turn_on_illumination()
+
+def close_illumination(context=None):
+    """
+    Turn off the bright field illumination.
+    ----------------------------------------------------------------
+    Parameters
+    ----------
+    context : dict, optional
+        The context is a dictionary contains keys:
+            - login_url: the login URL
+            - report_url: the report URL
+            - key: the key for the login
+        For detailes, see: https://ha.amun.ai/#/
+    """
+    squidController.microcontroller.turn_off_illumination()
 
 
 
@@ -304,8 +241,6 @@ async def start_service(service_id, workspace=None, token=None):
         }
     )
     
-    # print("Workspace: ", workspace, "Token:", await server.generate_token({"expires_in": 3600*24*100}))
-    
     async def on_init(peer_connection):
         @peer_connection.on("track")
         def on_track(track):
@@ -323,50 +258,6 @@ async def start_service(service_id, workspace=None, token=None):
         # Start the task to send stage position periodically
         asyncio.create_task(send_status(data_channel))
 
-                
-
-
-
-    def move_distance(x,y,z, context=None):
-        squidController.navigationController.move_x(x)
-        while squidController.microcontroller.is_busy():
-            time.sleep(0.005)
-        squidController.navigationController.move_y(y)
-        while squidController.microcontroller.is_busy():
-            time.sleep(0.005)
-        squidController.navigationController.move_z(z)
-        while squidController.microcontroller.is_busy():
-            time.sleep(0.005)
-        print(f'The stage moved ({x},{y},{z})mm through x,y,z axis')
-    
-    def snap(context=None):
-        squidController.camera.send_trigger()
-        gray_img = squidController.camera.read_frame()
-        #squidController.camera.stop_streaming()
-        rgb_img = gray_to_rgb(gray_img)
-        return rgb_img
-
-            
-    def move_stage_to(x,y,z, context=None):
-        squidController.navigationController.move_x_to(x)
-        while squidController.microcontroller.is_busy():
-            time.sleep(0.005)
-        squidController.navigationController.move_y_to(y)
-        while squidController.microcontroller.is_busy():
-            time.sleep(0.005)
-        squidController.navigationController.move_z_to(z)
-        while squidController.microcontroller.is_busy():
-            time.sleep(0.005)
-        print(f'The stage moved to position ({x},{y},{z})mm')
-    
-
-
-
-    def open_illumination(context=None):
-        squidController.microcontroller.turn_on_illumination()
-    def close_illumination(context=None):
-        squidController.microcontroller.turn_off_illumination()
-        
     await server.register_service(
         {
             "id": "microscope-control-squid",
@@ -376,8 +267,7 @@ async def start_service(service_id, workspace=None, token=None):
                 "require_context": True,   
             },
             "type": "echo",
-            "move": move_distance,
-            #"current_position": get_position,
+            "move_by_distance": move_by_distance,
             "snap": snap,
             "off_illumination": close_illumination,
             "on_illumination": open_illumination
