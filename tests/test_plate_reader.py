@@ -184,23 +184,23 @@ class SquidController:
 
         self.channel_names = ['BF LED matrix full','Fluorescence 405 nm Ex']
     
-    def get_location_list(self, start_x=14.3, start_y=11.36, distance=9, rows=8, cols=12):
-        # Initialize parameters, default values are for 96-well plate
-        # Initialize an empty list to store positions
-        location_list = np.empty((0, 3), dtype=float)
-        # Generate the positions
-        for row in range(rows):
-            for col in range(cols):
-                x = start_x + col * distance
-                y = start_y + row * distance
-                # Assuming a default z-axis value, for example, 0
-                z = 0
-                location_list = np.append(location_list, [[x, y, z]], axis=0)
-        return location_list
+    # def get_location_list(self, start_x=14.3, start_y=11.36, distance=9, rows=8, cols=12):
+    #     # Initialize parameters, default values are for 96-well plate
+    #     # Initialize an empty list to store positions
+    #     location_list = np.empty((0, 3), dtype=float)
+    #     # Generate the positions
+    #     for row in range(rows):
+    #         for col in range(cols):
+    #             x = start_x + col * distance
+    #             y = start_y + row * distance
+    #             # Assuming a default z-axis value, for example, 0
+    #             z = 0
+    #             location_list = np.append(location_list, [[x, y, z]], axis=0)
+    #     return location_list
 
     def plate_scan(self,action_ID='01'):
         # start the acquisition loop
-        location_list = self.get_location_list(rows=3,cols=3)
+        location_list = self.multipointController.get_location_list(rows=3,cols=3)
         self.multipointController.set_base_path(DEFAULT_SAVING_PATH)
         self.multipointController.set_selected_configurations(self.channel_names)
         self.multipointController.do_autofocus = True
@@ -231,7 +231,7 @@ class SquidController:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--simulation", help="Run the GUI with simulated hardware.", action = 'store_true')
+    parser.add_argument("--simulation", help="Ru with simulated hardware.", action = 'store_true')
     args = parser.parse_args()
 
     #squid = SquidController(is_simulation = args.simulation)
