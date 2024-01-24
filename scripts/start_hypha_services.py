@@ -241,7 +241,7 @@ def scan_well_plate(context=None):
         For detailes, see: https://ha.amun.ai/#/
     """
     print("Start scanning well plate")
-    pass
+    squidController.scan_well_plate(action_ID='Test')
 
 def stop_scan(context=None):
     """
