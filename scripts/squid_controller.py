@@ -77,64 +77,6 @@ class SquidController:
         if ENABLE_TRACKING:
             self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
         
-        def init_stage(self):
-            # retract the object
-            self.navigationController.home_z()
-            # wait for the operation to finish
-            t0 = time.time()
-            while self.microcontroller.is_busy():
-                time.sleep(0.005)
-                if time.time() - t0 > 10:
-                    print('z homing timeout, the program will exit')
-                    exit()
-            print('objective retracted')
-            self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
-
-            # home XY, set zero and set software limit
-            print('home xy')
-            timestamp_start = time.time()
-            # x needs to be at > + 20 mm when homing y
-            self.navigationController.move_x(20) # to-do: add blocking code
-            while self.microcontroller.is_busy():
-                time.sleep(0.005)
-            # home y
-            self.navigationController.home_y()
-            t0 = time.time()
-            while self.microcontroller.is_busy():
-                time.sleep(0.005)
-                if time.time() - t0 > 10:
-                    print('y homing timeout, the program will exit')
-                    exit()
-            self.navigationController.zero_y()
-            # home x
-            self.navigationController.home_x()
-            t0 = time.time()
-            while self.microcontroller.is_busy():
-                time.sleep(0.005)
-                if time.time() - t0 > 10:
-                    print('y homing timeout, the program will exit')
-                    exit()
-            self.navigationController.zero_x()
-            self.slidePositionController.homing_done = True
-
-            # move to scanning position
-            self.navigationController.move_x(20)
-            while self.microcontroller.is_busy():
-                time.sleep(0.005)
-            self.navigationController.move_y(20)
-            while self.microcontroller.is_busy():
-                time.sleep(0.005)
-
-            # move z
-            self.navigationController.move_z_to(DEFAULT_Z_POS_MM)
-            # wait for the operation to finish
-            t0 = time.time() 
-            while self.microcontroller.is_busy():
-                time.sleep(0.005)
-                if time.time() - t0 > 5:
-                    print('z return timeout, the program will exit')
-                    exit()
-
         # open the camera
         # camera start streaming
         # self.camera.set_reverse_x(CAMERA_REVERSE_X) # these are not implemented for the cameras in use
@@ -170,8 +112,76 @@ class SquidController:
 
 
 
+    def init_stage(self):
+        # retract the object
+        self.navigationController.home_z()
+        # wait for the operation to finish
+        t0 = time.time()
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+            if time.time() - t0 > 10:
+                print('z homing timeout, the program will exit')
+                exit()
+        print('objective retracted')
+        self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
 
-    def closeEvent(self, event):
+        # home XY, set zero and set software limit
+        print('home xy')
+        timestamp_start = time.time()
+        # x needs to be at > + 20 mm when homing y
+        self.navigationController.move_x(20) # to-do: add blocking code
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+        # home y
+        self.navigationController.home_y()
+        t0 = time.time()
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+            if time.time() - t0 > 10:
+                print('y homing timeout, the program will exit')
+                exit()
+        self.navigationController.zero_y()
+        # home x
+        self.navigationController.home_x()
+        t0 = time.time()
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+            if time.time() - t0 > 10:
+                print('y homing timeout, the program will exit')
+                exit()
+        self.navigationController.zero_x()
+        self.slidePositionController.homing_done = True
+
+        # move to scanning position
+        self.navigationController.move_x(20)
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+        self.navigationController.move_y(20)
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+
+        # move z
+        self.navigationController.move_z_to(DEFAULT_Z_POS_MM)
+        # wait for the operation to finish
+        t0 = time.time() 
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+            if time.time() - t0 > 5:
+                print('z return timeout, the program will exit')
+                exit()
+
+    def plate_scan(self, action_ID='01'):
+        # start the acquisition loop
+        location_list = self.multipointController.get_location_list(rows=3,cols=3)
+        self.multipointController.set_base_path(DEFAULT_SAVING_PATH)
+        self.multipointController.set_selected_configurations(self.channel_names)
+        self.multipointController.do_autofocus = True
+        self.multipointController.start_new_experiment(action_ID)
+        self.multipointController.run_acquisition_reef(location_list=location_list)
+        
+
+
+    def close(self):
 
         # move the objective to a defined position upon exit
         self.navigationController.move_x(0.1) # temporary bug fix - move_x needs to be called before move_x_to if the stage has been moved by the joystick
@@ -195,5 +205,4 @@ class SquidController:
             self.camera_focus.close()
             #self.imageDisplayWindow_focus.close()
         self.microcontroller.close()
-
 
