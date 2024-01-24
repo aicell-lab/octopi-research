@@ -73,8 +73,8 @@ async def send_status(data_channel, workspace=None, token=None):
     """
     while True:
         if data_channel and data_channel.readyState == "open":
-            current_x, current_y, current_z, current_theta = get_position()
-            squid_status = {"x": current_x, "y": current_y, "z": current_z, "theta": current_theta}
+            current_x, current_y, current_z, current_theta, is_illumination = get_status()
+            squid_status = {"x": current_x, "y": current_y, "z": current_z, "theta": current_theta, "illumination": is_illumination}
             data_channel.send(json.dumps(squid_status))
         await asyncio.sleep(1)  # Wait for 1 second before sending the next update
 
@@ -142,9 +142,9 @@ def move_to_position(x,y,z, context=None):
     print(f'The stage moved to position ({x},{y},{z})mm')
 
 
-def get_position(context=None):
+def get_status(context=None):
     """
-    Get the current position of the stage.
+    Get the current status of the microscope.
     ----------------------------------------------------------------
     Parameters
     ----------
@@ -165,10 +165,13 @@ def get_position(context=None):
         The current position of the stage in z axis.
     current_theta : float
         The current position of the stage in theta axis.
+    is_illumination_on : bool
+        The status of the bright field illumination.
 
     """
     current_x, current_y, current_z, current_theta = squidController.navigationController.update_pos(microcontroller=squidController.microcontroller)
-    return current_x, current_y, current_z, current_theta
+    is_illumination_on = squidController.liveController.illumination_on
+    return current_x, current_y, current_z, current_theta, is_illumination_on
 
 def snap(context=None):
     """
@@ -207,7 +210,7 @@ def open_illumination(context=None):
             - key: the key for the login
         For detailes, see: https://ha.amun.ai/#/
     """
-    squidController.microcontroller.turn_on_illumination()
+    squidController.liveController.turn_on_illumination()
 
 def close_illumination(context=None):
     """
@@ -222,7 +225,7 @@ def close_illumination(context=None):
             - key: the key for the login
         For detailes, see: https://ha.amun.ai/#/
     """
-    squidController.microcontroller.turn_off_illumination()
+    squidController.liveController.turn_off_illumination()
 
 def scan_well_plate(context=None):
     """
