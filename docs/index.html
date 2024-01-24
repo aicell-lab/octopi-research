@@ -373,9 +373,9 @@
                     // Add the logic to start the 96 well plate scanning
                     console.log("Starting 96 well plate scanning...");
                     // Example: Call a function from your microscope control
-                    // if (window.microscopeControl) {
-                    //     window.microscopeControl.scan_well_plate({_rkwargs: true});
-                    // }
+                if (window.microscopeControl) {
+                    window.microscopeControl.scan_well_plate({_rkwargs: true});
+                }
                 } else {
                     // Change button back to initial state
                     button.classList.remove('btn-success');
@@ -386,9 +386,9 @@
                     // Add logic to stop the 96 well plate scanning
                     console.log("Stopping 96 well plate scanning...");
                     // Example: Call a function from your microscope control
-                    // if (window.microscopeControl) {
-                    //     window.microscopeControl.stop_scan_well_plate({_rkwargs: true});
-                    // }
+                    if (window.microscopeControl) {
+                        window.microscopeControl.stop_scan({_rkwargs: true});
+                    }
                 }
 
                 this.plateScanRunning = !this.plateScanRunning;
