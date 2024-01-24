@@ -224,7 +224,21 @@ def close_illumination(context=None):
     """
     squidController.microcontroller.turn_off_illumination()
 
-
+def scan_well_plate(context=None):
+    """
+    Scan the well plate accroding to pre-defined position list.
+    ----------------------------------------------------------------
+    Parameters
+    ----------
+    context : dict, optional
+        The context is a dictionary contains keys:
+            - login_url: the login URL
+            - report_url: the report URL
+            - key: the key for the login
+        For detailes, see: https://ha.amun.ai/#/
+    """
+    print("Start scanning well plate")
+    pass
 
 
 async def start_service(service_id, workspace=None, token=None):
@@ -270,7 +284,8 @@ async def start_service(service_id, workspace=None, token=None):
             "move_by_distance": move_by_distance,
             "snap": snap,
             "off_illumination": close_illumination,
-            "on_illumination": open_illumination
+            "on_illumination": open_illumination,
+            "scan_well_plate": scan_well_plate,
             
         }
     )
