@@ -240,6 +240,22 @@ def scan_well_plate(context=None):
     print("Start scanning well plate")
     pass
 
+def stop_scan(context=None):
+    """
+    Stop the well plate scanning.
+    ----------------------------------------------------------------
+    Parameters
+    ----------
+    context : dict, optional
+        The context is a dictionary contains keys:
+            - login_url: the login URL
+            - report_url: the report URL
+            - key: the key for the login
+        For detailes, see: https://ha.amun.ai/#/
+    """
+    print("Stop scanning well plate")
+    pass
+
 
 async def start_service(service_id, workspace=None, token=None):
     client_id = service_id + "-client"
@@ -286,6 +302,7 @@ async def start_service(service_id, workspace=None, token=None):
             "off_illumination": close_illumination,
             "on_illumination": open_illumination,
             "scan_well_plate": scan_well_plate,
+            "stop_scan": stop_scan,
             
         }
     )
