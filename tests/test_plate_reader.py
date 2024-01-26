@@ -198,9 +198,9 @@ class SquidController:
     #             location_list = np.append(location_list, [[x, y, z]], axis=0)
     #     return location_list
 
-    def plate_scan(self,rows=8,cols=12, illuminate_channels=['BF LED matrix full','Fluorescence 405 nm Ex'], do_autofocus=True, action_ID='testPlateScan'):
+    def plate_scan(self,rows=3,cols=4, illuminate_channels=['BF LED matrix full','Fluorescence 405 nm Ex'], do_autofocus=True, action_ID='testPlateScan'):
         # start the acquisition loop
-        location_list = self.multipointController.get_location_list(rows,cols)
+        location_list = self.multipointController.get_location_list()
         self.multipointController.set_base_path(DEFAULT_SAVING_PATH)
         self.multipointController.set_selected_configurations(illuminate_channels)
         self.multipointController.do_autofocus = do_autofocus
