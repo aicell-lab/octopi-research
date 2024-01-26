@@ -170,7 +170,16 @@
                 app.addMenuItem({
                     label: "BioImage.IO Chatbot",
                     async callback() {
-                        const chatbot = await api.createWindow({src: "https://ai.imjoy.io/2hDGvySiiyHU3fuGNeLmU3/apps/bioimageio-chatbot-client/index"})
+                        //const chatbot = await api.createWindow({src: "https://ai.imjoy.io/2hDGvySiiyHU3fuGNeLmU3/apps/bioimageio-chatbot-client/index"})
+                        // Prompt the user to input the src URL
+                        const userSrc = prompt("Please enter the URL for the microscope control chatbot:", "https://ai.imjoy.io/2hDGvySiiyHU3fuGNeLmU3/apps/bioimageio-chatbot-client/index");
+                        // Create the window with the provided src URL
+                        if(userSrc) {
+                            const chatbot = await api.createWindow({src: userSrc})
+                            // ... [rest of your existing code]
+                        } else {
+                            alert("No URL provided. Window creation cancelled.");
+                        }
                         await chatbot.registerExtension({
                             _rintf: true,
                             name: "MoveMicroscopeStage",
