@@ -963,7 +963,7 @@ class AutoFocusController():
         self.liveController = liveController
         self.N = 10
         self.deltaZ = None
-        self.deltaZ_usteps = 1.524
+        self.deltaZ_usteps = 3.914#1.524
         self.crop_width = AF.CROP_WIDTH
         self.crop_height = AF.CROP_HEIGHT
         self.autofocus_in_progress = False
@@ -975,6 +975,11 @@ class AutoFocusController():
         mm_per_ustep_Z = SCREW_PITCH_Z_MM/(self.navigationController.z_microstepping*FULLSTEPS_PER_REV_Z)
         self.deltaZ = deltaZ_um/1000
         self.deltaZ_usteps = round((deltaZ_um/1000)/mm_per_ustep_Z)
+    
+    ###########################
+        # Set deltaZ!
+    ###########################
+
 
     def set_crop(self,crop_width,crop_height):
         self.crop_width = crop_width
@@ -1588,7 +1593,7 @@ class MultiPointController():
     def set_base_path(self,path):
         self.base_path = path
     
-    def get_location_list(self, start_x=14.3, start_y=11.36,start_z=1.3, distance=9, rows=8, cols=12):
+    def get_location_list(self, start_x=22, start_y=18,start_z=4.3, distance=26, rows=3, cols=4):
         # Initialize parameters, default values are for 96-well plate
         # Initialize an empty list to store positions
         location_list = np.empty((0, 3), dtype=float)

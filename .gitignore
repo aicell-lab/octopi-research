@@ -1,5 +1,4 @@
-*.ini
-*.txt
+log.txt
 cache/
 .vscode
 

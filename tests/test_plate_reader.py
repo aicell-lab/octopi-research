@@ -198,12 +198,13 @@ class SquidController:
     #             location_list = np.append(location_list, [[x, y, z]], axis=0)
     #     return location_list
 
-    def plate_scan(self,action_ID='01'):
+    def plate_scan(self,rows=3,cols=4, illuminate_channels=['BF LED matrix full','Fluorescence 405 nm Ex'], do_autofocus=True, action_ID='testPlateScan'):
         # start the acquisition loop
-        location_list = self.multipointController.get_location_list(rows=3,cols=3)
+        location_list = self.multipointController.get_location_list()
         self.multipointController.set_base_path(DEFAULT_SAVING_PATH)
-        self.multipointController.set_selected_configurations(self.channel_names)
-        self.multipointController.do_autofocus = True
+        self.multipointController.set_selected_configurations(illuminate_channels)
+        self.multipointController.do_autofocus = do_autofocus
+        self.autofocusController.set_deltaZ(self.autofocusController.deltaZ_usteps)
         self.multipointController.start_new_experiment(action_ID)
         self.multipointController.run_acquisition_reef(location_list=location_list)
         
@@ -235,6 +236,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     #squid = SquidController(is_simulation = args.simulation)
-    squid = SquidController(is_simulation = True)
+    squid = SquidController(is_simulation = False)
     squid.plate_scan()
     squid.close()
