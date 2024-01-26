@@ -204,6 +204,7 @@ class SquidController:
         self.multipointController.set_base_path(DEFAULT_SAVING_PATH)
         self.multipointController.set_selected_configurations(illuminate_channels)
         self.multipointController.do_autofocus = do_autofocus
+        self.autofocusController.set_deltaZ(self.autofocusController.deltaZ_usteps)
         self.multipointController.start_new_experiment(action_ID)
         self.multipointController.run_acquisition_reef(location_list=location_list)
         
@@ -235,6 +236,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     #squid = SquidController(is_simulation = args.simulation)
-    squid = SquidController(is_simulation = True)
+    squid = SquidController(is_simulation = False)
     squid.plate_scan()
     squid.close()

@@ -961,7 +961,7 @@ class AutoFocusController():
         self.camera = camera
         self.navigationController = navigationController
         self.liveController = liveController
-        self.N = 14
+        self.N = 10
         self.deltaZ = None
         self.deltaZ_usteps = 3.914#1.524
         self.crop_width = AF.CROP_WIDTH
@@ -975,6 +975,11 @@ class AutoFocusController():
         mm_per_ustep_Z = SCREW_PITCH_Z_MM/(self.navigationController.z_microstepping*FULLSTEPS_PER_REV_Z)
         self.deltaZ = deltaZ_um/1000
         self.deltaZ_usteps = round((deltaZ_um/1000)/mm_per_ustep_Z)
+    
+    ###########################
+        # Set deltaZ!
+    ###########################
+
 
     def set_crop(self,crop_width,crop_height):
         self.crop_width = crop_width
