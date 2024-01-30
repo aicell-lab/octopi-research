@@ -132,24 +132,7 @@ class SquidController:
                 exit()
         self.navigationController.zero_x()
         self.slidePositionController.homing_done = True
-
-        # move to scanning position
-        self.navigationController.move_x(20)
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-        self.navigationController.move_y(20)
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-
-        # move z
-        self.navigationController.move_z_to(DEFAULT_Z_POS_MM)
-        # wait for the operation to finish
-        t0 = time.time() 
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-            if time.time() - t0 > 5:
-                print('z return timeout, the program will exit')
-                exit()
+        
 
         # open the camera
         # camera start streaming
@@ -184,22 +167,11 @@ class SquidController:
 
         self.channel_names = ['BF LED matrix full','Fluorescence 405 nm Ex']
     
-    # def get_location_list(self, start_x=14.3, start_y=11.36, distance=9, rows=8, cols=12):
-    #     # Initialize parameters, default values are for 96-well plate
-    #     # Initialize an empty list to store positions
-    #     location_list = np.empty((0, 3), dtype=float)
-    #     # Generate the positions
-    #     for row in range(rows):
-    #         for col in range(cols):
-    #             x = start_x + col * distance
-    #             y = start_y + row * distance
-    #             # Assuming a default z-axis value, for example, 0
-    #             z = 0
-    #             location_list = np.append(location_list, [[x, y, z]], axis=0)
-    #     return location_list
 
-    def plate_scan(self,rows=3,cols=4, illuminate_channels=['BF LED matrix full','Fluorescence 405 nm Ex'], do_autofocus=True, action_ID='testPlateScan'):
+
+    def plate_scan(self,well_plate_type='12', illuminate_channels=['BF LED matrix full','Fluorescence 405 nm Ex'], do_autofocus=True, action_ID='testPlateScan'):
         # start the acquisition loop
+        self.move_to_scaning_position()
         location_list = self.multipointController.get_location_list()
         self.multipointController.set_base_path(DEFAULT_SAVING_PATH)
         self.multipointController.set_selected_configurations(illuminate_channels)
@@ -208,6 +180,26 @@ class SquidController:
         self.multipointController.start_new_experiment(action_ID)
         self.multipointController.run_acquisition_reef(location_list=location_list)
         
+    def move_to_scaning_position(self):
+        
+        # move to scanning position
+        self.navigationController.move_x(20)
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+        self.navigationController.move_y(20)
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+
+        # move z
+        self.navigationController.move_z_to(DEFAULT_Z_POS_MM)
+        # wait for the operation to finish
+        t0 = time.time() 
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+            if time.time() - t0 > 5:
+                print('z return timeout, the program will exit')
+                exit()
+
     def close(self):
         # move the objective to a defined position upon exit
         self.navigationController.move_x(0.1) # temporary bug fix - move_x needs to be called before move_x_to if the stage has been moved by the joystick
@@ -236,6 +228,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     #squid = SquidController(is_simulation = args.simulation)
-    squid = SquidController(is_simulation = False)
+    squid = SquidController(is_simulation = True)
     squid.plate_scan()
     squid.close()

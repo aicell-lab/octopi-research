@@ -1,4 +1,5 @@
 import os 
+import sys
 #from squid_control.control.processing_handler import ProcessingHandler
 from squid_control.control.stitcher import Stitcher, default_image_reader
 
@@ -1593,9 +1594,22 @@ class MultiPointController():
     def set_base_path(self,path):
         self.base_path = path
     
-    def get_location_list(self, start_x=22, start_y=18,start_z=4.3, distance=26, rows=3, cols=4):
+    def get_location_list(self, well_plate_type='12'):
         # Initialize parameters, default values are for 96-well plate
         # Initialize an empty list to store positions
+        if well_plate_type == '12':
+            start_x,start_y,start_z,distance,rows,cols = 22,18,4.3,26,3,4
+        elif well_plate_type == '24':
+            #start_x,start_y,start_z,distance,rows,cols = 22,18,4.3,26,4,6
+            # @@@ to do: add 24 well plate
+            print("Error: '24' well plate type is not supported.")
+            sys.exit(1)
+        else:
+            # Handle other unsupported well plate types
+            print(f"Error: '{well_plate_type}' well plate type is not supported.")
+            sys.exit(1)
+
+
         location_list = np.empty((0, 3), dtype=float)
         # Generate the positions
         for row in range(rows):
