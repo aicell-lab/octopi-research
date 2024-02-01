@@ -229,5 +229,6 @@ if __name__ == "__main__":
 
     #squid = SquidController(is_simulation = args.simulation)
     squid = SquidController(is_simulation = True)
-    squid.plate_scan()
+    
+    #squid.plate_scan()
     squid.close()
