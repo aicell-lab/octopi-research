@@ -1,21 +1,32 @@
 import logging
-# Additional imports may include device-specific libraries or communication libraries
+from dorna2 import dorna
+from squid_control.squid_controller import SquidController
 
-def init_microscope():
-    # Code to initialize the microscope
-    pass
+robot = dorna.Dorna()
+squid = SquidController(is_simulation=True)
 
-def init_arm():
+def zero_stage():
+    #move the stage to the zero position for loading or unloading samples
+    logging.info("Moving the stage to the zero position.")
+    squid.init_stage()
+    logging.info("Stage is at the zero position.")
+
+def init_robot():
     # Code to initialize the robotic arm
-    pass
+    logging.info("Connecting to the robot.")
+    if not robot.connect("localhost", "443"):
+        logging.error("Failed to connect to the robot.")
+        raise Exception("Failed to connect to the robot.")
+    else:
+        robot.set_motor(1)
+        logging.info("Connected to the robot, motor is on.")
+
+def grab_
+
 
 def main():
     try:
-        logging.info("Initializing microscope.")
-        init_microscope()
-        
-        logging.info("Initializing robotic arm.")
-        init_arm()
+
 
         logging.info("Arm grabbing the sample.")
         grab()
