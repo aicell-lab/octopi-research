@@ -1594,10 +1594,12 @@ class MultiPointController():
     def set_base_path(self,path):
         self.base_path = path
     
-    def get_location_list(self, well_plate_type='12'):
+    def get_location_list(self, well_plate_type='test'):
         # Initialize parameters, default values are for 96-well plate
         # Initialize an empty list to store positions
-        if well_plate_type == '12':
+        if well_plate_type =='test':
+            start_x,start_y,start_z,distance,rows,cols = 22,18,0.3,2,2,1
+        elif well_plate_type == '12':
             start_x,start_y,start_z,distance,rows,cols = 22,18,4.3,26,3,4
         elif well_plate_type == '24':
             #start_x,start_y,start_z,distance,rows,cols = 22,18,4.3,26,4,6

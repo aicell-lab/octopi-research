@@ -172,7 +172,7 @@ class SquidController:
                 print('z return timeout, the program will exit')
                 exit()
     
-    def plate_scan(self,well_plate_type='12', illuminate_channels=['BF LED matrix full','Fluorescence 405 nm Ex'], do_autofocus=True, action_ID='testPlateScan'):
+    def plate_scan(self,well_plate_type='test', illuminate_channels=['BF LED matrix full'], do_autofocus=True, action_ID='testPlateScan'):
         # start the acquisition loop
         self.move_to_scaning_position()
         location_list = self.multipointController.get_location_list()
