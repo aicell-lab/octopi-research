@@ -528,6 +528,7 @@ class Camera_Simulation(object):
     def send_trigger(self):
         self.frame_ID = self.frame_ID + 1
         self.timestamp = time.time()
+        
         if self.frame_ID == 1:
             if self.pixel_format == 'MONO8':
                 self.current_frame = np.random.randint(255,size=(2000,2000),dtype=np.uint8)
@@ -545,6 +546,15 @@ class Camera_Simulation(object):
             # self.current_frame = np.random.randint(255,size=(768,1024),dtype=np.uint8)
         if self.new_image_callback_external is not None and self.callback_is_enabled:
             self.new_image_callback_external(self)
+
+    def send_trigger2(self,xy_pos_pixel=[2000,2000]):
+        
+        # For this microscope, the pixel size is 0.0925 um/pixel
+        self.frame_ID = self.frame_ID + 1
+        self.timestamp = time.time()
+        
+
+
 
     def read_frame(self):
         return self.current_frame
