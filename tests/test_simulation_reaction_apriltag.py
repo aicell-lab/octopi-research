@@ -102,7 +102,7 @@ def detect_apriltag():
 
         tvec = tag.pose_t  # Translation vector
         R = tag.pose_R  # Rotation matrix
-        roll, pitch, yaw = euler_from_rotation_matrix(R)
+        pitch, roll, yaw = euler_from_rotation_matrix(R)
 
         detected_position = [tvec[0][0], tvec[1][0], tvec[2][0]]
         detected_orientation = [roll, pitch, yaw]  # Assuming PyBullet uses the same convention
@@ -120,9 +120,9 @@ def detect_apriltag():
                     (tag_center[0]-150, tag_center[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
         # Display the resulting frame
-        cv2.imshow('Frame', color_image)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+    cv2.imshow('Frame', color_image)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        cv2.destroyAllWindows()
 
     return detected_position, detected_orientation
 
@@ -137,7 +137,7 @@ while True:
         quaternion = p.getQuaternionFromEuler([np.radians(orientation[0]), np.radians(orientation[1]), np.radians(orientation[2])])
         adjusted_orientation = [
             orientation[0],  # Roll remains the same
-            orientation[1],  # Add 90 degrees to Pitch (assuming Y is Pitch in your convention)
+            orientation[1]+180,  # Pitch remains the same
             orientation[2]  # Yaw remains the same
         ]
 
@@ -154,7 +154,7 @@ while True:
             np.radians(adjusted_orientation[1]),
             np.radians(adjusted_orientation[2])
         ])
-        camera_pos, camera_orient = get_camera_pose(robot, camera_link_index)m ,
+        camera_pos, camera_orient = get_camera_pose(robot, camera_link_index)
         relative_pos = adjusted_position  # The position relative to the camera
         relative_orient = [np.radians(o) for o in adjusted_orientation]  # The orientation (Euler angles) relative to the camera
         world_pos, world_orient = transform_position_orientation(relative_pos, relative_orient, camera_pos, camera_orient)
