@@ -292,7 +292,7 @@ class Camera(object):
         self.trigger_mode = TriggerMode.HARDWARE
         self.update_camera_exposure_time()
 
-    def send_trigger(self):
+    def send_trigger(self,*args):
         if self.is_streaming:
             self.camera.TriggerSoftware.send_command()
         else:
@@ -414,9 +414,38 @@ class Camera(object):
         self.camera.LineMode.set(gx.GxLineModeEntry.OUTPUT)
         self.camera.LineSource.set(gx.GxLineSourceEntry.EXPOSURE_ACTIVE)
 
+
+# from imjoy_utils import HTTPFile
+# from threading import Lock, RLock
+# import zipfile
+# import zarr
+# from imjoy import api
+# import matplotlib.pyplot as plt
+
+# class RemoteZipStore(zarr.ZipStore):
+#     def __init__(self, path, compression=zipfile.ZIP_STORED, allowZip64=True, mode='a',
+#                  dimension_separator=None):
+
+#         # store properties
+#         self.path = None # TODO: This need to be handled properly for os.PathLike or file-like object
+#         self.compression = compression
+#         self.allowZip64 = allowZip64
+#         self.mode = mode
+#         self._dimension_separator = dimension_separator
+
+#         # Current understanding is that zipfile module in stdlib is not thread-safe,
+#         # and so locking is required for both read and write. However, this has not
+#         # been investigated in detail, perhaps no lock is needed if mode='r'.
+#         self.mutex = RLock()
+
+#         # open zip file
+#         self.zf = zipfile.ZipFile(path, mode=mode, compression=compression,
+#                                   allowZip64=allowZip64)
+        
 class Camera_Simulation(object):
     
     def __init__(self,sn=None,is_global_shutter=False,rotate_image_angle=None,flip_image=None):
+        from PIL import Image
         # many to be purged
         self.sn = sn
         self.is_global_shutter = is_global_shutter
@@ -472,6 +501,20 @@ class Camera_Simulation(object):
         self.OffsetY = 0
 
 
+        # file = HTTPFile(url="https://s3.imjoy.io/public-datasets/9798462.zarr.zip", mode="rb")
+        # store = RemoteZipStore(file, mode='r')
+        # source = zarr.open(store=store, mode="r")
+        # print(source.tree())
+        # self.large_tissue_image = source[0][0,:,0,:,:]
+        # del file,source,store
+
+        with Image.open('squid_control\images\cellpainting_for_simulation.tif') as img:
+            # Convert the image into a NumPy array
+            self.large_tissue_image = np.array(img)
+            #self.large_tissue_image = np.resize(self.large_tissue_image,(2000,2000))
+        
+
+
     def open(self,index=0):
         pass
 
@@ -525,34 +568,58 @@ class Camera_Simulation(object):
     def set_hardware_triggered_acquisition(self):
         pass
 
-    def send_trigger(self):
+    # def send_trigger(self):
+    #     self.frame_ID = self.frame_ID + 1
+    #     self.timestamp = time.time()
+        
+    #     if self.frame_ID == 1:
+    #         if self.pixel_format == 'MONO8':
+    #             self.current_frame = np.random.randint(255,size=(2000,2000),dtype=np.uint8)
+    #             self.current_frame[901:1100,901:1100] = 200
+    #         elif self.pixel_format == 'MONO12':
+    #             self.current_frame = np.random.randint(4095,size=(2000,2000),dtype=np.uint16)
+    #             self.current_frame[901:1100,901:1100] = 200*16
+    #             self.current_frame = self.current_frame << 4
+    #         elif self.pixel_format == 'MONO16':
+    #             self.current_frame = np.random.randint(65535,size=(2000,2000),dtype=np.uint16)
+    #             self.current_frame[901:1100,901:1100] = 200*256
+    #     else:
+    #         self.current_frame = np.roll(self.current_frame,10,axis=0)
+    #         pass 
+    #         # self.current_frame = np.random.randint(255,size=(768,1024),dtype=np.uint8)
+    #     if self.new_image_callback_external is not None and self.callback_is_enabled:
+    #         self.new_image_callback_external(self)
+
+    
+        
+    def send_trigger(self, xy_pos_um=[0,0]):
+        # For this microscope, the pixel size is 0.0925 um/pixel
+        xy_pos_pixel = [int(xy_pos_um[0]/0.0925), int(xy_pos_um[1]/0.0925)]
         self.frame_ID = self.frame_ID + 1
         self.timestamp = time.time()
+        image_size = (500, 500)
         
-        if self.frame_ID == 1:
-            if self.pixel_format == 'MONO8':
-                self.current_frame = np.random.randint(255,size=(2000,2000),dtype=np.uint8)
-                self.current_frame[901:1100,901:1100] = 200
-            elif self.pixel_format == 'MONO12':
-                self.current_frame = np.random.randint(4095,size=(2000,2000),dtype=np.uint16)
-                self.current_frame[901:1100,901:1100] = 200*16
-                self.current_frame = self.current_frame << 4
-            elif self.pixel_format == 'MONO16':
-                self.current_frame = np.random.randint(65535,size=(2000,2000),dtype=np.uint16)
-                self.current_frame[901:1100,901:1100] = 200*256
-        else:
-            self.current_frame = np.roll(self.current_frame,10,axis=0)
-            pass 
-            # self.current_frame = np.random.randint(255,size=(768,1024),dtype=np.uint8)
+        # Ensure the view does not exceed the image boundaries
+        start_x = max(min(xy_pos_pixel[0], self.large_tissue_image.shape[1] - image_size[1]), 0)
+        start_y = max(min(xy_pos_pixel[1], self.large_tissue_image.shape[0] - image_size[0]), 0)
+        
+        # Corrected view selection based on xy positions
+        current_view = self.large_tissue_image[start_y:start_y + image_size[0], start_x:start_x + image_size[1]]
+        
+        
+        if self.new_image_callback_external is not None and self.callback_is_enabled:
+            self.new_image_callback_external(current_view)
+
+        if self.pixel_format == 'MONO8':
+            self.current_frame = current_view.astype(np.uint8)
+        elif self.pixel_format == 'MONO12':
+            self.current_frame = (current_view >> 4).astype(np.uint16)
+        elif self.pixel_format == 'MONO16':
+            self.current_frame = (current_view >> 8).astype(np.uint16)
+
         if self.new_image_callback_external is not None and self.callback_is_enabled:
             self.new_image_callback_external(self)
 
-    def send_trigger2(self,xy_pos_pixel=[2000,2000]):
-        
-        # For this microscope, the pixel size is 0.0925 um/pixel
-        self.frame_ID = self.frame_ID + 1
-        self.timestamp = time.time()
-        
 
 
 

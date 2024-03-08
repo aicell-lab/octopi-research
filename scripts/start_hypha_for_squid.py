@@ -28,6 +28,7 @@ from squid_control.squid_controller import SquidController
 import squid_control.squid_chatbot as chatbot
 
 
+current_x, current_y = 0,0
 
 squidController= SquidController(is_simulation=True)
 
@@ -74,6 +75,7 @@ async def send_status(data_channel, workspace=None, token=None):
     """
     while True:
         if data_channel and data_channel.readyState == "open":
+            global current_x, current_y
             current_x, current_y, current_z, current_theta, is_illumination, _ = get_status()
             squid_status = {"x": current_x, "y": current_y, "z": current_z, "theta": current_theta, "illumination": is_illumination}
             data_channel.send(json.dumps(squid_status))
@@ -193,7 +195,7 @@ def snap(context=None):
     rgb_img : numpy.ndarray
         The current frame from the camera transfered to RGB image.
     """
-    squidController.camera.send_trigger()
+    squidController.camera.send_trigger(xy_pos_um=[current_x, current_y])
     gray_img = squidController.camera.read_frame()
     rgb_img = im_processing.gray_to_rgb(gray_img)
     return rgb_img
