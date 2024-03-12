@@ -508,7 +508,7 @@ class Camera_Simulation(object):
         # self.large_tissue_image = source[0][0,:,0,:,:]
         # del file,source,store
 
-        with Image.open('squid_control\images\cellpainting_for_simulation.tif') as img:
+        with Image.open('squid_control/images/cellpainting_for_simulation.tif') as img:
             # Convert the image into a NumPy array
             self.large_tissue_image = np.array(img)
             #self.large_tissue_image = np.resize(self.large_tissue_image,(2000,2000))
@@ -593,8 +593,8 @@ class Camera_Simulation(object):
     
         
     def send_trigger(self, xy_pos_um=[0,0]):
-        # For this microscope, the pixel size is 0.0925 um/pixel
-        xy_pos_pixel = [int(xy_pos_um[0]/0.0925), int(xy_pos_um[1]/0.0925)]
+        # For this microscope, the pixel size is 0.4/0.0925 um/pixel
+        xy_pos_pixel = [int(xy_pos_um[0]/0.4), int(xy_pos_um[1]/0.4)]
         self.frame_ID = self.frame_ID + 1
         self.timestamp = time.time()
         image_size = (500, 500)
