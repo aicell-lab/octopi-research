@@ -25,7 +25,7 @@ import json
 import webbrowser
 
 from squid_control.squid_controller import SquidController
-import squid_control.squid_chatbot as chatbot
+#import squid_control.squid_chatbot as chatbot
 
 
 current_x, current_y = 0,0
