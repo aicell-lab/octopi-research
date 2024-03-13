@@ -25,7 +25,7 @@ import json
 import webbrowser
 
 from squid_control.squid_controller import SquidController
-#import squid_control.squid_chatbot as chatbot
+import squid_control.squid_chatbot as chatbot
 
 
 current_x, current_y = 0,0
@@ -329,7 +329,7 @@ async def start_service(service_id, workspace=None, token=None):
         f"Service (client_id={client_id}, service_id={service_id}) started successfully, available at https://ai.imjoy.io/{server.config.workspace}/services"
     )
     print(f"You can access the webrtc stream at https://aicell-lab.github.io/squid-control/?service_id={service_id}")
-    #await chatbot.connect_server("https://ai.imjoy.io")
+    await chatbot.connect_server("https://ai.imjoy.io")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -350,5 +350,5 @@ if __name__ == "__main__":
         workspace=None,
         token=None,
     ))
-    #loop.create_task(chatbot.connect_server("https://ai.imjoy.io"))
+    loop.create_task(chatbot.connect_server("https://ai.imjoy.io"))
     loop.run_forever()
