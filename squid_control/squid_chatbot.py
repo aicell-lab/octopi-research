@@ -88,9 +88,9 @@ class ActionPlan(BaseModel):
 
 async def create_customer_service(): ###Async version####################
     #Initialize squid microscopy access
-    #squid_server = await connect_to_server({"server_url": "https://ai.imjoy.io/"})
+    squid_server = await connect_to_server({"server_url": "https://ai.imjoy.io/"})
 
-    #squid_svc = await squid_server.get_service("microscope-control-squid")
+    squid_svc = await squid_server.get_service("microscope-control-squid")
 
     def clean_image_in_history(chat_history):
         for chat in chat_history:
@@ -114,13 +114,13 @@ async def create_customer_service(): ###Async version####################
 
                 if isinstance(action, MoveByDistanceAction):
 
-                    #await squid_svc.move_by_distance(action.x,action.y,action.z)
+                    await squid_svc.move_by_distance(action.x,action.y,action.z)
                     return_string += f"The stage has moved, distance: ({action.x}, {action.y}, {action.z}) through X, Y and Z axis.\n"
                 elif isinstance(action,SnapImageAction):
-                    #squid_image = await squid_svc.snap()
-                    #markdown_image=image_to_markdown(squid_image)
-                    return_string += f"Here is the image:\n"
-                    #return_string += f"Here is the image:\n {markdown_image}\n"
+                    squid_image = await squid_svc.snap()
+                    markdown_image=image_to_markdown(squid_image)
+                    
+                    return_string += f"Here is the image:\n {markdown_image}\n"
 
             return return_string
         # else:
@@ -295,9 +295,9 @@ async def register_chat_service(server):
 
 
 
-if __name__ == "__main__":
-    # asyncio.run(main())
-    server_url = "https://ai.imjoy.io"
-    loop = asyncio.get_event_loop()
-    loop.create_task(connect_server(server_url))
-    loop.run_forever()
+# if __name__ == "__main__":
+#     # asyncio.run(main())
+#     server_url = "https://ai.imjoy.io"
+#     loop = asyncio.get_event_loop()
+#     loop.create_task(connect_server(server_url))
+#     loop.run_forever()
