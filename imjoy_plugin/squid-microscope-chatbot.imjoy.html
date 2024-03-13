@@ -1,0 +1,82 @@
+﻿<docs lang="markdown">
+[TODO: write documentation for this plugin.]
+</docs>
+
+<config lang="json">
+{
+  "name": "squid-microscope-chatbot",
+  "type": "native-python",
+  "version": "0.1.0",
+  "description": "This plugin controls squid microscope with chatbot. And will be put on microscope control web GUI",
+  "tags": [],
+  "ui": "",
+  "cover": "",
+  "inputs": null,
+  "outputs": null,
+  "flags": [],
+  "icon": "extension",
+  "api_version": "0.1.8",
+  "env": "",
+  "permissions": [],
+  "requirements": [],
+  "dependencies": []
+}
+</config>
+
+<script lang="python">
+from imjoy_rpc.hypha import connect_to_server
+from imjoy import api
+from pydantic import BaseModel, Field
+import numpy as np
+import asyncio
+
+squid_server = await connect_to_server({"server_url": "https://ai.imjoy.io/"})
+
+squid_svc = await squid_server.get_service("microscope-control-squid")
+async def move_stage_by_distance(kwargs):
+    config = MoveByDistanceInput(**kwargs)
+    squid_svc.move_by_distance(config.x, config.y,config.z)
+    print(config.x, config.y,config.z)
+    return "Moved the stage!"
+    
+async def snap_image(kwargs):
+    config = SnapImageInput(**kwargs)
+    squid_image = await squid_svc.snap()
+    viewer = await api.createWindow(type="itk-vtk-viewer", src="https://kitware.github.io/itk-vtk-viewer/app")
+    await viewer.setImage(squid_image)
+    return f"Here is the image"
+
+class MoveByDistanceInput(BaseModel):
+    """Move the stage by a specified distance."""
+    x: int = Field(description="Move the stage along X direction (mm).")
+    y: int = Field(description="Move the stage along Y direction (mm).")
+    z: int = Field(description="Move the stage along Z direction (mm).")
+
+class SnapImageInput(BaseModel):
+    """Snap an image from microscope."""
+    exposure: int = Field(description="Set the microscope camera's exposure time (ms).")
+
+async def setup():
+    chatbot = await api.createWindow(src="https://chat.bioimage.io/public/apps/bioimageio-chatbot-client/chat")
+    
+    def get_schema():
+        return {
+            "move_by_distance": MoveByDistanceInput.schema(),
+            "snap_image": SnapImageInput.schema()
+        }
+
+    extension = {
+        "_rintf": True,
+        "id": "squid-control",
+        "name": "Squid Microscope Control",
+        "description": "Your goal is control the microscope based on the user's request. Now you can move microscope stage, and snap image.",
+        "get_schema": get_schema,
+        "tools": {
+            "move_by_distance": move_stage_by_distance,
+            "snap_image": snap_image,
+        }
+    }
+    await chatbot.registerExtension(extension)
+
+api.export({"setup": setup})
+</script>
