@@ -1307,9 +1307,9 @@ class MultiPointWorker():
                                     if self.liveController.trigger_mode == TriggerMode.SOFTWARE:
                                         self.liveController.turn_on_illumination()
                                         self.wait_till_operation_is_completed()
-                                        self.camera.send_trigger()
+                                        self.camera.send_trigger([self.navigationController.x_pos_mm, self.navigationController.y_pos_mm])
                                     elif self.liveController.trigger_mode == TriggerMode.HARDWARE:
-                                        self.microcontroller.send_hardware_trigger(control_illumination=True,illumination_on_time_us=self.camera.exposure_time*1000)
+                                        self.microcontroller.send_hardware_trigger(control_illumination=True, illumination_on_time_us=self.camera.exposure_time*1000)
                                     # read camera frame
                                     old_pixel_format = self.camera.pixel_format
                                     if config.pixel_format is not None:
@@ -1317,6 +1317,7 @@ class MultiPointWorker():
                                             self.camera.set_pixel_format(config.pixel_format)
                                     
                                     image = self.camera.read_frame()
+                                    
 
                                     if config.pixel_format is not None:
                                         if config.pixel_format != "" and config.pixel_format.lower() != "default":
@@ -1594,10 +1595,12 @@ class MultiPointController():
     def set_base_path(self,path):
         self.base_path = path
     
-    def get_location_list(self, well_plate_type='12'):
+    def get_location_list(self, well_plate_type='test'):
         # Initialize parameters, default values are for 96-well plate
         # Initialize an empty list to store positions
-        if well_plate_type == '12':
+        if well_plate_type =='test':
+            start_x,start_y,start_z,distance,rows,cols = 22,18,0.3,2,2,1
+        elif well_plate_type == '12':
             start_x,start_y,start_z,distance,rows,cols = 22,18,4.3,26,3,4
         elif well_plate_type == '24':
             #start_x,start_y,start_z,distance,rows,cols = 22,18,4.3,26,4,6

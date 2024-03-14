@@ -1,0 +1,72 @@
+{
+
+    "sequences": [
+      {
+        "sequence_id": 1,
+        "description": "Preparation and Initial Positioning",
+        "note": ["This sequence is used to prepare the robot for the next steps. It will move the robot to the initial position and then to the position where the well plate is located."],
+        "actions": [
+            {"id":101,"cmd":"jmove","rel":0,"j0":-8.481445,"j1":27.13623,"j2":-111.51123,"j3":1.120605,"j4":-0.395508,"vel":20,"accel":500,"jerk":2000}
+        ]
+      },
+      {
+        "sequence_id": 2,
+        "description": "Grab the well plate and lift it up",
+        "note":["ready for grab",
+        "Grab the plate",
+        "Lift the plate"
+      ],
+        "actions": [
+            {"id":201,"cmd":"lmove","rel":0,"x":299.141278,"y":-44.490667,"z":74.826672,"a":-84.155273,"b":-1.582031,"c":0.85,"vel":30,"accel":500,"jerk":2000},
+            {"id":202,"cmd":"lmove","rel":0,"x":301.772201,"y":-44.408914,"z":72.682738,"a":-84.133301,"b":-1.604004,"c":-101.045,"vel":80},
+            {"id":203,"cmd":"lmove","rel":0,"x":185.265054,"y":-44.448148,"z":409.374913,"a":-84.177246,"b":-1.604004,"c":-101.04625,"vel":30,"accel":500,"jerk":2000}
+        ]
+      },
+      {
+        "sequence_id": 3,
+        "description": "Put the well plate on microscope stage, and then wait for scanning",
+        "note":["Turn to the microscope, notice, just j0 moved!",
+        " Move the sample over stage.", 
+        "Put the sample on the stage, SLOW!!",
+        "Lose the gripper, when lossing, move the gripper a little bit right 0.3mm, because there is no enough space.",
+        "lift the gripper, and move to the initial position."
+    ],
+        "actions":[
+            {"id":301,"cmd":"jmove","rel":0,"j0":93.933105,"j1":105.930176,"j2":-89.077148,"j3":-101.008301,"j4":-1.582031,"j5":-101.0475,"vel":20,"accel":100,"jerk":500},
+            {"id":302,"cmd":"lmove","rel":0,"x":-42.617708,"y":183.519809,"z":402.040606,"a":-84.506836,"b":20.895996,"c":-101.0475,"vel":10,"accel":100,"jerk":500},
+            {"id":303,"cmd":"lmove","rel":0,"x":-42.688724,"y":183.506203,"z":386.026849,"a":-84.528809,"b":20.895996,"c":-101.0475,"vel":3,"accel":100,"jerk":500},
+            {"id":304,"cmd":"lmove","rel":0,"x":-42.386751,"y":183.506203,"z":386.026849,"a":-84.528809,"b":20.895996,"c":-76.0375,"vel":6,"accel":100,"jerk":500},
+            {"id":305,"cmd":"lmove","rel":0,"x":-42.390171,"y":183.497847,"z":413.238727,"a":-84.528809,"b":20.895996,"c":-76.0375,"vel":7,"accel":100,"jerk":500},
+            {"id":306,"cmd":"jmove","rel":0,"j0":4.87793,"j1":106.105957,"j2":-87.648926,"j3":-102.98584,"j4":20.895996,"j5":-76.0375,"vel":20,"accel":100,"jerk":500}
+        ]
+      },
+      {
+        "sequence_id": 4,
+        "description": "Put the well plate back to the original position",
+        "note":["Turn to the original position, notice, just j0 moved!",
+        "Move the gripper above stage.",
+        "down Z",
+        "Gripper tight",
+        "Before lift, move the gripper a little bit left 0.3mm, because there is no enough space.",
+        "Lift the gripper, and move to the initial position.",
+        "J0 move to the initial position.",
+        "Put it back to the original position."
+      ],
+        "actions":[
+            {"id":401,"cmd":"jmove","rel":0,"j0":103.40332,"j1":106.105957,"j2":-87.648926,"j3":-102.963867,"j4":20.895996,"j5":-76.0375,"vel":20,"accel":100,"jerk":500},
+            {"id":402,"cmd":"lmove","rel":0,"x":-41.051274,"y":183.467758,"z":411,"a":-84.528809,"b":20.126953,"c":-71.6,"vel":10,"accel":500,"jerk":2000},
+            {"id":403,"cmd":"lmove","rel":0,"x":-41.050358,"y":183.463661,"z":386.137932,"a":-84.528809,"b":20.126953,"c":-71.6,"vel":3,"accel":500,"jerk":2000},
+            {"id":404,"cmd":"lmove","rel":0,"x":-41.050358,"y":183.463661,"z":386.137932,"a":-84.528809,"b":20.126953,"c":-100.83375,"vel":10,"accel":500,"jerk":2000},
+            {"id":405,"cmd":"lmove","rel":0,"x":-41.297396,"y":182.594974,"z":386.611299,"a":-84.550781,"b":20.126953,"c":-100.83375,"vel":3,"accel":500,"jerk":2000},
+            {"id":406,"cmd":"lmove","rel":0,"x":-41.299745,"y":182.605363,"z":409.316815,"a":-84.528809,"b":20.126953,"c":-100.83375,"vel":10,"accel":500,"jerk":2000},
+            {"id":407,"cmd":"jmove","rel":0,"j0":7.492676,"j1":106.765137,"j2":-89.604492,"j3":-101.689453,"j4":20.126953,"j5":-100.83375,"vel":20,"accel":100,"jerk":500},
+            {"id":408,"cmd":"lmove","rel":0,"x":299.141278,"y":-44.490667,"z":73,"a":-84.155273,"b":-1.582031,"vel":30,"accel":500,"jerk":2000},
+            {"id":409,"cmd":"lmove","rel":0,"x":299.141278,"y":-44.490667,"z":73,"a":-84.155273,"b":-1.582031,"c":0.85,"vel":30,"accel":500,"jerk":2000}
+
+        ]
+
+      }
+      
+    ]
+  }
+  

@@ -23,7 +23,7 @@ def snap_image(kwargs):
     return "success"
 
 async def setup():
-    chatbot = await api.createWindow(src="http://127.0.0.1:9003/public/apps/bioimageio-chatbot-client/chat")
+    chatbot = await api.createWindow(src="https://chat.bioimage.io/public/apps/bioimageio-chatbot-client/chat")
     
     def get_schema():
         return {
@@ -44,4 +44,6 @@ async def setup():
     }
     await chatbot.registerExtension(extension)
 
-api.export({"setup": setup})
+
+api.export({"setup": setup()})
+

@@ -165,14 +165,14 @@ class SquidController:
             self.camera_focus.enable_callback()
             self.camera_focus.start_streaming()
 
-        self.channel_names = ['BF LED matrix full','Fluorescence 405 nm Ex']
+        #self.channel_names =['BF LED matrix full','Fluorescence 405 nm Ex']
     
 
 
-    def plate_scan(self,well_plate_type='12', illuminate_channels=['BF LED matrix full','Fluorescence 405 nm Ex'], do_autofocus=True, action_ID='testPlateScan'):
+    def plate_scan(self,well_plate_type='12', illuminate_channels=['BF LED matrix full'], do_autofocus=True, action_ID='testPlateScan'):
         # start the acquisition loop
         self.move_to_scaning_position()
-        location_list = self.multipointController.get_location_list()
+        location_list = self.multipointController.get_location_list(well_plate_type=well_plate_type)
         self.multipointController.set_base_path(DEFAULT_SAVING_PATH)
         self.multipointController.set_selected_configurations(illuminate_channels)
         self.multipointController.do_autofocus = do_autofocus
@@ -229,5 +229,6 @@ if __name__ == "__main__":
 
     #squid = SquidController(is_simulation = args.simulation)
     squid = SquidController(is_simulation = True)
-    squid.plate_scan()
+    
+    squid.plate_scan(well_plate_type='12')
     squid.close()
