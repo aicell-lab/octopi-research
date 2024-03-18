@@ -57,11 +57,6 @@
             height: auto;
         }
 
-
-
-
-
-
     </style>
 </head>
 
@@ -165,7 +160,7 @@
                 });
                 // add a menu item to show the plugin info
                 app.addMenuItem({
-                    label: "BioImage.IO Chatbot",
+                    label: "Squid Control Chatbot",
                     async callback() {
                         //const chatbot = await api.createWindow({src: "https://ai.imjoy.io/2hDGvySiiyHU3fuGNeLmU3/apps/bioimageio-chatbot-client/index"})
                         // Prompt the user to input the src URL
@@ -177,47 +172,7 @@
                         } else {
                             alert("No URL provided. Window creation cancelled.");
                         }
-                        await chatbot.registerExtension({
-                            _rintf: true,
-                            name: "MoveMicroscopeStage",
-                            description: "Move the microscope stage to a specific location",
-                            async get_schema() {
-                              // you can also generate the json schema in Python
-                              // if you have a pydantic class named MoveMicroscopeStage
-                              // you can use MoveMicroscopeStage.schema() to get the schema
-                              return {
-                                type: "object",
-                                title: "MoveMicroscopeStage",
-                                description: "Move the microscope stage",
-                                properties: {
-                                    x: {
-                                        type: "number",
-                                        title: "X",
-                                        description: "X",
-                                        default: 0,
-                                    },
-                                    y: {
-                                        type: "number",
-                                        title: "Y",
-                                        description: "Y",
-                                        default: 0,
-                                    },
-                                    z: {
-                                        type: "number",
-                                        title: "Z",
-                                        description: "Z",
-                                        default: 0,
-                                    },
-                                },
-                              };
-                            },
-                            async execute(config) {
-                                console.log('move stage', config)
-                                window.methods.moveMicroscope('x', config.x)
-                                window.methods.moveMicroscope('y', config.y)
-                                window.methods.moveMicroscope('z', config.z)
-                            },
-                          })
+
                     },
                 });
 
