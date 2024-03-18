@@ -26,45 +26,42 @@
             margin-bottom: 20px;
         }
 
-        #media {
-            max-width: 1280px;
-            height: 50vh;
-            position: relative;
-        }
-
-        audio,
-        video {
-            width: 100%;
-            height: 50vh;
-        }
-
         #viewer-section {
-            max-width: 800px;
-            margin-top: 20px;
+            display: flex; /* Use flexbox for layout */
+            justify-content: left; /* Center the children horizontally */
+            align-items: start; /* Align items to the start of the cross axis */
+            flex-wrap: wrap; /* Allow items to wrap as needed */
+            max-width: 100%; /* Ensure the section does not overflow the viewport width */
         }
 
-        .viewer-container {
-            position: relative;
+        #media {
+            flex-grow: 1; /* Allow the video container to grow and take up space */
+            max-width: 480px; /* Adjust based on desired size of video output */
+            max-height: 480px; /* Adjust height automatically */
         }
 
         #control-panel {
-            position: absolute;
-            z-index: 10;
-            top: 60px;
-            right: 10px;
-            width: 100px;
-            height: 100px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px;
+            flex-grow: 1; /* Allow the control panel to grow */
+            max-width: 15%; /* Adjust based on desired size of the control panel */
+            margin-left: 20px; /* Add some space between the video and control panel */
+            align-items: center; /* Center items horizontally (since it's a column layout) */
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
-        #control-panel .btn-group {
-            display: flex;
-            justify-content: space-between;
+        /* Ensure the video fills the container */
+        video {
+            width: 100%;
+            height: auto;
         }
+
+
+
+
+
+
     </style>
 </head>
 
@@ -91,6 +88,12 @@
                 
         </div>
         <div id="viewer-section" class="position-relative">
+            
+            <div id="media" class="shadow-lg">
+                <audio id="audio" autoplay="true"></audio>
+                <video id="video" autoplay="true" playsinline="true"></video>
+               
+            </div>
             <div id="control-panel" class="d-flex flex-column align-items-center justify-content-center">
                 <button id="startStopButton" class="btn btn-primary" onclick="window.methods.toggleLive()">
                     <span id="startStopIcon" class="fas fa-play"></span>
@@ -110,12 +113,6 @@
                 </button>
 
                 
-            </div>
-
-            <div id="media" class="shadow-lg">
-                <audio id="audio" autoplay="true"></audio>
-                <video id="video" autoplay="true" playsinline="true"></video>
-               
             </div>
             </div>
             <svg id="well-plate-svg" style="width: 300px; height: 200px;"> <!-- Adjust size as needed -->
