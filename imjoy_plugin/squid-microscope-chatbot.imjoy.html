@@ -63,7 +63,7 @@ async def setup():
     squid_server = await connect_to_server({"server_url": "https://ai.imjoy.io/"})
     squid_svc = await squid_server.get_service("microscope-control-squid")
 
-    chatbot = await api.createWindow(src="https://chat.bioimage.io/public/apps/bioimageio-chatbot-client/index")
+    chatbot = await api.createWindow(src="https://chat.bioimage.io/public/apps/bioimageio-chatbot-client/chat")
 
     async def get_schema():
         return {

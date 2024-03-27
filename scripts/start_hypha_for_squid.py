@@ -344,6 +344,22 @@ def zero_z(context=None):
         time.sleep(0.005)
     print('The stage moved to zero position in z axis')
 
+def move_to_loading_position(context=None):
+    """
+    Move the stage to the loading position.
+
+    """
+    squidController.navigationController.zero_z()
+    while squidController.microcontroller.is_busy():
+        time.sleep(0.005)
+    squidController.navigationController.zero_x()
+    while squidController.microcontroller.is_busy():
+        time.sleep(0.005)
+    squidController.navigationController.zero_y()
+    while squidController.microcontroller.is_busy():
+        time.sleep(0.005)
+    print('The stage moved to loading position')
+
 
 async def start_service(service_id, workspace=None, token=None):
     client_id = service_id + "-client"
@@ -397,9 +413,8 @@ async def start_service(service_id, workspace=None, token=None):
             "zero_x": zero_x,
             "zero_y": zero_y,
             "zero_z": zero_z,
-            "move_to_position": move_to_position,
-            
-            
+            "move_to_position": move_to_position,      
+            "move_to_loading_position": move_to_loading_position,
         }
     )
     
