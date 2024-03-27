@@ -36,14 +36,14 @@ async def setup():
     from pydantic import BaseModel, Field
 
     class MoveByDistanceInput(BaseModel):
-        """Move the stage by a specified distance."""
-        x: int = Field(description="Move the stage along X direction (mm).")
-        y: int = Field(description="Move the stage along Y direction (mm).")
-        z: int = Field(description="Move the stage along Z direction (mm).")
+        """Move the stage by a specified distance, the unit of distance is millimeters, so you need to input the distance in millimeters."""
+        x: float = Field(description="Move the stage along X axis.")
+        y: float = Field(description="Move the stage along Y axis.")
+        z: float = Field(description="Move the stage along Z axis.")
 
     class SnapImageInput(BaseModel):
         """Snap an image from microscope."""
-        exposure: int = Field(description="Set the microscope camera's exposure time (ms).")
+        exposure: int = Field(description="Set the microscope camera's exposure time. and the time unit is ms, so you need to input the time in miliseconds.")
 
     async def move_stage_by_distance(kwargs):
         config = MoveByDistanceInput(**kwargs)
