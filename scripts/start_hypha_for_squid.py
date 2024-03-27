@@ -56,6 +56,7 @@ class VideoTransformTrack(MediaStreamTrack):
         return new_frame
 
 
+
 async def send_status(data_channel, workspace=None, token=None):
     """
     Send the current status of the microscope to the client. User can dump information of the microscope to a json data.
@@ -247,6 +248,25 @@ def scan_well_plate(context=None):
     print("Start scanning well plate")
     squidController.scan_well_plate(action_ID='Test')
 
+def set_illumination(illumination_source,intensity, context=None):
+    """
+    Set the intensity of the bright field illumination.
+    illumination_source : int
+    intensity : float, 0-100
+    If you want to know the illumination source's and intensity's number, you can check the 'channel_configurations.xml' file.
+    """
+    squidController.liveController.set_illumination(illumination_source,intensity)
+    print(f'The intensity of the {illumination_source} illumination is set to {intensity}.')
+
+def set_camera_exposure(exposure_time, context=None):
+    """
+    Set the exposure time of the camera.
+    exposure_time : float, 
+    """
+    squidController.camera.set_exposure_time(exposure_time)
+    print(f'The exposure time of the camera is set to {exposure_time}.')
+
+
 def stop_scan(context=None):
     """
     Stop the well plate scanning.
@@ -260,8 +280,69 @@ def stop_scan(context=None):
             - key: the key for the login
         For detailes, see: https://ha.amun.ai/#/
     """
+    squidController.liveController.stop_live()
     print("Stop scanning well plate")
     pass
+
+def home_x(context=None):
+    """
+    Move the stage to the home position in x axis.
+
+    """
+    squidController.navigationController.home_x(0)
+    while squidController.microcontroller.is_busy():
+        time.sleep(0.005)
+    print('The stage moved to home position in x axis')
+
+def home_y(context=None):
+    """
+    Move the stage to the home position in y axis.
+
+    """
+    squidController.navigationController.home_y(0)
+    while squidController.microcontroller.is_busy():
+        time.sleep(0.005)
+    print('The stage moved to home position in y axis')
+
+def home_z(context=None):
+    """
+    Move the stage to the home position in z axis.
+
+    """
+    squidController.navigationController.home_z(0)
+    while squidController.microcontroller.is_busy():
+        time.sleep(0.005)
+    print('The stage moved to home position in z axis')
+
+def zero_x(context=None):
+    """
+    Move the stage to the zero position in x axis.
+
+    """
+    squidController.navigationController.zero_x()
+    while squidController.microcontroller.is_busy():
+        time.sleep(0.005)
+    print('The stage moved to zero position in x axis')
+
+def zero_y(context=None):
+    """
+    Move the stage to the zero position in y axis.
+
+    """
+    squidController.navigationController.zero_y()
+    while squidController.microcontroller.is_busy():
+        time.sleep(0.005)
+    print('The stage moved to zero position in y axis')
+
+def zero_z(context=None):
+    """
+    Move the stage to the zero position in z axis.
+
+    """
+    squidController.navigationController.zero_z()
+    while squidController.microcontroller.is_busy():
+        time.sleep(0.005)
+    print('The stage moved to zero position in z axis')
 
 
 async def start_service(service_id, workspace=None, token=None):
@@ -310,6 +391,14 @@ async def start_service(service_id, workspace=None, token=None):
             "on_illumination": open_illumination,
             "scan_well_plate": scan_well_plate,
             "stop_scan": stop_scan,
+            "home_x": home_x,
+            "home_y": home_y,
+            "home_z": home_z,
+            "zero_x": zero_x,
+            "zero_y": zero_y,
+            "zero_z": zero_z,
+            "move_to_position": move_to_position,
+            
             
         }
     )
