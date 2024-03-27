@@ -63,7 +63,7 @@ async def setup():
     squid_server = await connect_to_server({"server_url": "https://ai.imjoy.io/"})
     squid_svc = await squid_server.get_service("microscope-control-squid")
 
-    chatbot = await api.createWindow(src="https://chat.bioimage.io/public/apps/bioimageio-chatbot-client/chat")
+    chatbot = await api.createWindow(src="https://chat.bioimage.io/public/apps/bioimageio-chatbot-client/index")
 
     async def get_schema():
         return {
@@ -73,6 +73,7 @@ async def setup():
 
     extension = {
         "_rintf": True,
+        "type": "bioimageio-chatbot-extension",
         "id": "squid-control",
         "name": "Squid Microscope Control",
         "description": "Control the microscope based on the user's request. Now you can move the microscope stage, and snap an image.",
