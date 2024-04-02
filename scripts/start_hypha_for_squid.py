@@ -26,7 +26,7 @@ import webbrowser
 from squid_control.squid_controller import SquidController
 #import squid_control.squid_chatbot as chatbot
 
-
+is_busy = False
 current_x, current_y = 0,0
 
 squidController= SquidController(is_simulation=False)
@@ -100,6 +100,10 @@ def move_by_distance(x,y,z, context=None):
                 - report_url: the report URL
                 - key: the key for the login
     """
+    while is_busy:
+        time.sleep(0.1)
+    is_busy = True
+    
     squidController.navigationController.move_x(x)
     while squidController.microcontroller.is_busy():
         time.sleep(0.005)
@@ -110,6 +114,7 @@ def move_by_distance(x,y,z, context=None):
     while squidController.microcontroller.is_busy():
         time.sleep(0.005)
     print(f'The stage moved ({x},{y},{z})mm through x,y,z axis')
+    is_busy = False
 
 
         
@@ -133,6 +138,9 @@ def move_to_position(x,y,z, context=None):
             For detailes, see: https://ha.amun.ai/#/
 
     """
+    while is_busy:
+        time.sleep(0.1)
+    is_busy = True
     squidController.navigationController.move_x_to(x)
     while squidController.microcontroller.is_busy():
         time.sleep(0.005)
@@ -143,6 +151,7 @@ def move_to_position(x,y,z, context=None):
     while squidController.microcontroller.is_busy():
         time.sleep(0.005)
     print(f'The stage moved to position ({x},{y},{z})mm')
+    is_busy = False
 
 
 def get_status(context=None):
@@ -195,6 +204,9 @@ def snap(context=None):
     rgb_img : numpy.ndarray
         The current frame from the camera transfered to RGB image.
     """
+    while is_busy:
+        time.sleep(0.1)
+    is_busy = True
     squidController.camera.send_trigger()
     squidController.liveController.turn_on_illumination()
     squidController.liveController.set_illumination(0,44)
@@ -208,6 +220,7 @@ def snap(context=None):
     np.resize(gray_img,(1024,1024))
     print('The image is snapped.')
     return gray_img
+    is_busy = False
 
 
 def open_illumination(context=None):
