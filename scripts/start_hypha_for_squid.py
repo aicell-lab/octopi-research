@@ -196,7 +196,7 @@ def snap(context=None):
         The current frame from the camera transfered to RGB image.
     """
     squidController.camera.send_trigger()
-    squidController.liveController.set_illumination(0,5)
+    squidController.liveController.set_illumination(0,50)
     if squidController.microcontroller.is_busy():
         time.sleep(0.005)
     gray_img = squidController.camera.read_frame()
