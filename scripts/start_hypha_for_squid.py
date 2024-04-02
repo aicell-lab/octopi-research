@@ -205,7 +205,7 @@ def snap(context=None):
     squidController.liveController.set_illumination(0,0)
     if squidController.microcontroller.is_busy():
         time.sleep(0.005)
-    gray_img.resize((1024,1024))
+    np.resize(gray_img,(1024,1024))
     print('The image is snapped.')
     return gray_img
 
