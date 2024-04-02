@@ -23,7 +23,7 @@ from av import VideoFrame
 import fractions
 import json
 import webbrowser
-
+import matplotlib.image as mpimg
 from squid_control.squid_controller import SquidController
 #import squid_control.squid_chatbot as chatbot
 
@@ -198,7 +198,7 @@ def snap(context=None):
     """
     squidController.camera.send_trigger()
     gray_img = squidController.camera.read_frame()
-    
+    mpimg.imsave('gray_img.png', gray_img)
     rgb_img = im_processing.gray_to_rgb(gray_img)
     print('The image is snapped.')
     return rgb_img
