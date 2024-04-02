@@ -40,6 +40,10 @@ async def setup():
         x: float = Field(description="Move the stage along X axis.")
         y: float = Field(description="Move the stage along Y axis.")
         z: float = Field(description="Move the stage along Z axis.")
+    
+    class autofocusInput(BaseModel):
+        """Autofocus the microscope."""
+        do_autofocus: bool = Field(description="Autofocus the microscope, Ture or False.")
 
     class SnapImageInput(BaseModel):
         """Snap an image from microscope."""
@@ -58,6 +62,11 @@ async def setup():
         await viewer.setImage(squid_image)
         return "Here is the image"
 
+    async def autofocus(kwargs):
+        config = autofocusInput(**kwargs)
+        squid_svc.auto_focus()
+        return "Autofocused the microscope!"
+
     global squid_svc
     from imjoy_rpc.hypha import connect_to_server
     squid_server = await connect_to_server({"server_url": "https://ai.imjoy.io/"})
@@ -69,6 +78,7 @@ async def setup():
         return {
             "move_by_distance": MoveByDistanceInput.schema(),
             "snap_image": SnapImageInput.schema()
+            "autofocus": autofocusInput.schema()
         }
 
     extension = {
@@ -81,6 +91,7 @@ async def setup():
         "tools": {
             "move_by_distance": move_stage_by_distance,
             "snap_image": snap_image,
+            "autofocus": autofocus,
         }
     }
     await chatbot.registerExtension(extension)

@@ -360,6 +360,13 @@ def move_to_loading_position(context=None):
         time.sleep(0.005)
     print('The stage moved to loading position')
 
+def auto_focus(context=None):
+    """
+    Auto focus the camera.
+
+    """
+    squidController.autofocusController.autofocus()
+    print('The camera is auto focused')
 
 async def start_service(service_id, workspace=None, token=None):
     client_id = service_id + "-client"
@@ -415,6 +422,7 @@ async def start_service(service_id, workspace=None, token=None):
             "zero_z": zero_z,
             "move_to_position": move_to_position,      
             "move_to_loading_position": move_to_loading_position,
+            "auto_focus": auto_focus,
         }
     )
     
