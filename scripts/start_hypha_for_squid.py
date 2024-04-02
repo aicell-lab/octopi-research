@@ -198,10 +198,11 @@ def snap(context=None):
     """
     squidController.camera.send_trigger()
     gray_img = squidController.camera.read_frame()
+    gray_img = np.resize(gray_img, (500, 500))
     mpimg.imsave('gray_img.png', gray_img)
-    rgb_img = im_processing.gray_to_rgb(gray_img)
+    #rgb_img = im_processing.gray_to_rgb(gray_img)
     print('The image is snapped.')
-    return rgb_img
+    return gray_img
 
 
 def open_illumination(context=None):
@@ -452,6 +453,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="WebRTC demo for video streaming"
     )
+    parser.add_argument("--simulation", type=bool, default=True, help="The simulation mode")
     parser.add_argument("--service-id", type=str, default="squid-control", help="The service id")
     parser.add_argument("--verbose", "-v", action="count")
     args = parser.parse_args()
