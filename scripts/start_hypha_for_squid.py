@@ -30,7 +30,7 @@ from squid_control.squid_controller import SquidController
 
 current_x, current_y = 0,0
 
-squidController= SquidController(is_simulation=True)
+squidController= SquidController(is_simulation=False)
 
 class VideoTransformTrack(MediaStreamTrack):
     """
