@@ -197,11 +197,11 @@ def snap(context=None):
     """
     squidController.camera.send_trigger()
     squidController.liveController.set_illumination(0,5)
-    if squidController.camera.is_busy():
+    if squidController.microcontroller.is_busy():
         time.sleep(0.005)
     gray_img = squidController.camera.read_frame()
     squidController.liveController.set_illumination(0,0)
-    if squidController.camera.is_busy():
+    if squidController.microcontroller.is_busy():
         time.sleep(0.005)
     gray_img = np.resize(gray_img, (700, 700))
     #rgb_img = im_processing.gray_to_rgb(gray_img)
