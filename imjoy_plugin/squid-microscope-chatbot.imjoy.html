@@ -31,6 +31,7 @@ async def setup():
     # Use micropip to install pydantic asynchronously
     import micropip
     await micropip.install("pydantic")
+    import time
 
     # Now that pydantic is installed, we can safely import it
     from pydantic import BaseModel, Field
@@ -52,19 +53,22 @@ async def setup():
     async def move_stage_by_distance(kwargs):
         config = MoveByDistanceInput(**kwargs)
         squid_svc.move_by_distance(config.x, config.y, config.z)
+        time.sleep(1)
         print(config.x, config.y, config.z)
         return "Moved the stage!"
 
     async def snap_image(kwargs):
         config = SnapImageInput(**kwargs)
-        squid_image = await squid_svc.snap()
+        squid_image = squid_svc.snap()
         viewer = await api.createWindow(type="itk-vtk-viewer", src="https://kitware.github.io/itk-vtk-viewer/app")
         await viewer.setImage(squid_image)
+        time.sleep(1)
         return "Here is the image"
 
     async def autofocus(kwargs):
         config = autofocusInput(**kwargs)
         squid_svc.auto_focus()
+        time.sleep(5)
         return "Autofocused the microscope!"
 
     global squid_svc
@@ -78,7 +82,7 @@ async def setup():
         return {
             "move_by_distance": MoveByDistanceInput.schema(),
             "snap_image": SnapImageInput.schema(),
-            "autofocus": autofocusInput.schema(),
+            "autofocus": autofocusInput.schema()
         }
 
     extension = {
