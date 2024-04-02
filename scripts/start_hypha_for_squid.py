@@ -196,7 +196,7 @@ def snap(context=None):
     rgb_img : numpy.ndarray
         The current frame from the camera transfered to RGB image.
     """
-    squidController.camera.send_trigger(xy_pos_um=[current_x, current_y])
+    squidController.camera.send_trigger()
     gray_img = squidController.camera.read_frame()
     rgb_img = im_processing.gray_to_rgb(gray_img)
     print('The image is snapped.')
