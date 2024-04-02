@@ -366,6 +366,8 @@ def auto_focus(context=None):
 
     """
     squidController.autofocusController.autofocus()
+    while squidController.microcontroller.is_busy():
+        time.sleep(0.005)
     print('The camera is auto focused')
 
 async def start_service(service_id, workspace=None, token=None):
