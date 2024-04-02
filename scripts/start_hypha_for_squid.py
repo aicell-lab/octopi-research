@@ -199,6 +199,7 @@ def snap(context=None):
     squidController.camera.send_trigger(xy_pos_um=[current_x, current_y])
     gray_img = squidController.camera.read_frame()
     rgb_img = im_processing.gray_to_rgb(gray_img)
+    print('The image is snapped.')
     return rgb_img
 
 
