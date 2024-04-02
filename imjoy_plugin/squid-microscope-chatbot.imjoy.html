@@ -53,16 +53,16 @@ async def setup():
     async def move_stage_by_distance(kwargs):
         config = MoveByDistanceInput(**kwargs)
         squid_svc.move_by_distance(config.x, config.y, config.z)
-        time.sleep(1)
+        time.sleep(2)
         print(config.x, config.y, config.z)
         return "Moved the stage!"
 
     async def snap_image(kwargs):
         config = SnapImageInput(**kwargs)
-        squid_image = squid_svc.snap()
+        squid_image = await squid_svc.snap()
         viewer = await api.createWindow(type="itk-vtk-viewer", src="https://kitware.github.io/itk-vtk-viewer/app")
         await viewer.setImage(squid_image)
-        time.sleep(1)
+        time.sleep(2)
         return "Here is the image"
 
     async def autofocus(kwargs):
