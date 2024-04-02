@@ -25,6 +25,7 @@ import json
 import webbrowser
 from squid_control.squid_controller import SquidController
 #import squid_control.squid_chatbot as chatbot
+from PIL import Image
 
 
 current_x, current_y = 0,0
@@ -205,7 +206,8 @@ def snap(context=None):
     squidController.liveController.set_illumination(0,0)
     if squidController.microcontroller.is_busy():
         time.sleep(0.005)
-    gray_img = np.resize(gray_img, (700, 700))
+    gray_img = Image.fromarray(gray_img)
+    gray_img.resize((1024,1024))
     #rgb_img = im_processing.gray_to_rgb(gray_img)
     print('The image is snapped.')
     return gray_img
