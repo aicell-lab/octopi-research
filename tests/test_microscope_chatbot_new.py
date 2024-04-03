@@ -1,7 +1,8 @@
 import asyncio
 from imjoy import api
 import numpy as np
-
+from typing import Any, Dict, List, Optional, Union
+import time
 async def setup():
     # Use micropip to install pydantic asynchronously
     import micropip
@@ -20,6 +21,9 @@ async def setup():
         """Snap an image from microscope."""
         exposure: int = Field(description="Set the microscope camera's exposure time. and the time unit is ms, so you need to input the time in miliseconds.")
     
+    class ActionPlan(BaseModel):
+        """Creat a list of actions according to the user's request."""
+        actions: List[Union[MoveByDistanceInput,SnapImageInput]] = Field(description="A list of actions")
 
     def move_stage_by_distance(kwargs):
         config = MoveByDistanceInput(**kwargs)
