@@ -73,10 +73,16 @@ class QuestionWithHistory(BaseModel):
     user_profile: Optional[UserProfile] = Field(None, description="The user's profile. You should use this to personalize the response based on the user's background and occupation.")
 
 class MoveByDistanceAction(BaseModel):
-    """Move the stage by a specified distance."""
-    x: int = Field(description="Move the stage along X direction (mm).")
-    y: int = Field(description="Move the stage along Y direction (mm).")
-    z: int = Field(description="Move the stage along Z direction (mm).")
+    """Move the stage by a distance."""
+    x: int = Field(description="Move the stage a distance along X direction (mm).")
+    y: int = Field(description="Move the stage a distance along Y direction (mm).")
+    z: int = Field(description="Move the stage a distance along Z direction (mm).")
+
+class MoveToPositionAction(BaseModel):
+    """Move the stage to a specified position."""
+    x: int = Field(description="Move the stage to the specified position along X direction (mm).")
+    y: int = Field(description="Move the stage to the specified position along Y direction (mm).")
+    z: int = Field(description="Move the stage to the specified position along Z direction (mm).")
 
 class SnapImageAction(BaseModel):
     """Snap an image from microscope"""
@@ -116,6 +122,10 @@ async def create_customer_service(): ###Async version####################
 
                     await squid_svc.move_by_distance(action.x,action.y,action.z)
                     return_string += f"The stage has moved, distance: ({action.x}, {action.y}, {action.z}) through X, Y and Z axis.\n"
+                
+                elif isinstance(action,MoveToPositionAction):
+                    await squid_svc.move_to_position(action.x,action.y,action.z)
+                    return_string += f"The stage has moved to position, distance: ({action.x}, {action.y}, {action.z}) through X, Y and Z axis.\n"
                 elif isinstance(action,SnapImageAction):
                     squid_image = await squid_svc.snap()
                     markdown_image=image_to_markdown(squid_image)

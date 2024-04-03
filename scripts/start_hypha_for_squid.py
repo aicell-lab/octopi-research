@@ -199,9 +199,9 @@ def snap(context=None):
     squidController.liveController.turn_on_illumination()
     squidController.liveController.set_illumination(0,44)
     if squidController.microcontroller.is_busy():
-        time.sleep(0.5)
+        time.sleep(0.05)
     gray_img = squidController.camera.read_frame()
-    time.sleep(0.5)
+    time.sleep(0.05)
     squidController.liveController.set_illumination(0,0)
     if squidController.microcontroller.is_busy():
         time.sleep(0.005)
