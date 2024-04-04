@@ -29,7 +29,7 @@ from squid_control.squid_controller import SquidController
 
 current_x, current_y = 0,0
 
-squidController= SquidController(is_simulation=False)
+squidController= SquidController(is_simulation=True)
 
 class VideoTransformTrack(MediaStreamTrack):
     """
@@ -205,7 +205,8 @@ def snap(context=None):
     squidController.liveController.set_illumination(0,0)
     if squidController.microcontroller.is_busy():
         time.sleep(0.005)
-    np.resize(gray_img,(1024,1024))
+    squidController.liveController.turn_on_illumination()
+    gray_img=np.resize(gray_img,(512,512))
     print('The image is snapped.')
     return gray_img
 

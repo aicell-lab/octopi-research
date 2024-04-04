@@ -88,6 +88,10 @@ class SnapImageAction(BaseModel):
     """Snap an image from microscope"""
     #path: str = Field(description="File path to save the image. Format should be .tiff")
 
+class AutoFocusAction(BaseModel):
+    """Auto focus the microscope, this is not snap image, but adjust the focus of the microscope."""
+    
+
 class ActionPlan(BaseModel):
     """Creat a list of actions according to the user's request."""
     actions: List[Union[MoveByDistanceAction,SnapImageAction]] = Field(description="A list of actions")
@@ -126,6 +130,10 @@ async def create_customer_service(): ###Async version####################
                 elif isinstance(action,MoveToPositionAction):
                     await squid_svc.move_to_position(action.x,action.y,action.z)
                     return_string += f"The stage has moved to position, distance: ({action.x}, {action.y}, {action.z}) through X, Y and Z axis.\n"
+                
+                elif isinstance(action,AutoFocusAction):
+                    await squid_svc.auto_focus()
+                    return_string += f"The microscope has been auto focused.\n"
                 elif isinstance(action,SnapImageAction):
                     squid_image = await squid_svc.snap()
                     markdown_image=image_to_markdown(squid_image)
