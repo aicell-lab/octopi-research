@@ -56,8 +56,8 @@ def move_by_distance(config):
 def snap_image(config):
     
     squid_image_url = squid_svc.snap()
-    result_message = f"Image snapped, here is the url:<br><a href='{squid_image_url}' target='_blank'>{squid_image_url}</a>"
-    return {"result": result_message}
+    html_response = f'<img src="{squid_image_url}" alt="Microscope Image" style="max-width:100%;">'
+    return {"result": "Image snapped, here is the image:", "html": html_response}
 
 async def setup():
     global squid_svc
