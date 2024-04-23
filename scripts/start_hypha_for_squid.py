@@ -5,7 +5,7 @@ import squid_control.control.utils_.image_processing as im_processing
 
 import pyqtgraph.dockarea as dock
 import time
-
+from hypha_storage import HyphaDataStore
 import argparse
 import asyncio
 import fractions
@@ -33,7 +33,7 @@ squidController= SquidController(is_simulation=True)
 
 class VideoTransformTrack(MediaStreamTrack):
     """
-    A video stream track that transforms frames from an another track.
+    A video stream track that transforms frames from another track.
     """
 
     kind = "video"
@@ -42,16 +42,15 @@ class VideoTransformTrack(MediaStreamTrack):
         super().__init__()  # don't forget this!
         self.count = 0
 
-
     async def recv(self):
-        # Read frame from squid controller
-        rgb_img = snap()
+        # Read frame from squid controller, now correctly formatted as BGR
+        bgr_img = one_new_frame
         # Create the video frame
-        new_frame = VideoFrame.from_ndarray(rgb_img, format="bgr24")
-        new_frame.pts = self.count # frame.pts
-        self.count+=1
+        new_frame = VideoFrame.from_ndarray(bgr_img, format="bgr24")
+        new_frame.pts = self.count
         new_frame.time_base = fractions.Fraction(1, 1000)
-        await asyncio.sleep(1)
+        self.count += 1
+        await asyncio.sleep(1)  # Simulating frame rate delay
         return new_frame
 
 
@@ -177,23 +176,16 @@ def get_status(context=None):
     scan_channel = squidController.multipointController.selected_configurations
     return current_x, current_y, current_z, current_theta, is_illumination_on,scan_channel
 
+
+def one_new_frame(context=None):
+    gray_img = squidController.camera.read_frame()
+    bgr_img = np.stack((gray_img,)*3, axis=-1)  # Duplicate grayscale data across 3 channels to simulate BGR format.
+    return bgr_img
+
+
 def snap(context=None):
     """
-    Get the current frame from the camera.
-    ----------------------------------------------------------------
-    Parameters
-    ----------
-    context : dict, optional
-        The context is a dictionary contains keys:
-            - login_url: the login URL
-            - report_url: the report URL
-            - key: the key for the login
-        For detailes, see: https://ha.amun.ai/#/
-
-    Returns
-    -------
-    rgb_img : numpy.ndarray
-        The current frame from the camera transfered to RGB image.
+    Get the current frame from the camera, converted to a 3-channel BGR image.
     """
     squidController.camera.send_trigger()
     squidController.liveController.turn_on_illumination()
@@ -205,10 +197,12 @@ def snap(context=None):
     squidController.liveController.set_illumination(0,0)
     if squidController.microcontroller.is_busy():
         time.sleep(0.005)
-    squidController.liveController.turn_on_illumination()
-    gray_img=np.resize(gray_img,(512,512))
-    print('The image is snapped.')
-    return gray_img
+    squidController.liveController.turn_off_illumination()
+    gray_img=np.resize(gray_img,(500,500))
+    bgr_img = np.stack((gray_img,)*3, axis=-1)  # Duplicate grayscale data across 3 channels to simulate BGR format.
+    file_id = datastore.put('file', bgr_img.tobytes(), 'snapshot.png')
+    print(f'The image is snapped and saved as {datastore.get_url(file_id)}')
+    return datastore.get_url(file_id)
 
 
 def open_illumination(context=None):
@@ -396,6 +390,11 @@ async def start_service(service_id, workspace=None, token=None):
     async def on_init(peer_connection):
         @peer_connection.on("track")
         def on_track(track):
+            squidController.camera.send_trigger()
+            squidController.liveController.turn_on_illumination()
+            squidController.liveController.set_illumination(0,44)
+            if squidController.microcontroller.is_busy():
+                time.sleep(0.05)
             print(f"Track {track.kind} received")
 
             peer_connection.addTrack(
@@ -404,6 +403,9 @@ async def start_service(service_id, workspace=None, token=None):
          
             @track.on("ended")
             async def on_ended():
+                squidController.liveController.turn_off_illumination()
+                if squidController.microcontroller.is_busy():
+                    time.sleep(0.05)
                 print(f"Track {track.kind} ended")
     
         data_channel = peer_connection.createDataChannel("microscopeStatus")
@@ -446,7 +448,9 @@ async def start_service(service_id, workspace=None, token=None):
             "on_init": on_init,
         },
     )
-    
+    global datastore
+    datastore = HyphaDataStore()
+    await datastore.setup(server, service_id="data-store")
 
     print(
         f"Service (client_id={client_id}, service_id={service_id}) started successfully, available at https://ai.imjoy.io/{server.config.workspace}/services"
