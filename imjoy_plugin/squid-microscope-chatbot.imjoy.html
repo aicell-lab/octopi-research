@@ -55,8 +55,7 @@ def move_by_distance(config):
 
 def snap_image(config):
     squid_image_url = squid_svc.snap()
-    image_html = f'<img src="{squid_image_url}" style="display: block; max-width: 100%; height: auto; margin: auto; border: 1px solid #ccc; padding: 10px;">'
-    return {"result": image_html}
+    return squid_image_url
 
 async def setup():
     global squid_svc
