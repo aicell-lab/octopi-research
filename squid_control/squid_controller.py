@@ -112,7 +112,7 @@ class SquidController:
 
         self.illuminate_channels_for_scan = ['BF LED matrix full','Fluorescence 405 nm Ex']
 
-    def init_stage(self):
+
         # retract the object
         self.navigationController.home_z()
         # wait for the operation to finish
@@ -152,7 +152,6 @@ class SquidController:
         self.navigationController.zero_x()
         self.slidePositionController.homing_done = True
 
-    init_stage()
             
     def move_to_scaning_position(self):
         # move to scanning position
