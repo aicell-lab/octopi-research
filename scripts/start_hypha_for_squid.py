@@ -132,15 +132,18 @@ def move_to_position(x,y,z, context=None):
             For detailes, see: https://ha.amun.ai/#/
 
     """
-    squidController.navigationController.move_x_to(x)
-    while squidController.microcontroller.is_busy():
-        time.sleep(0.005)
-    squidController.navigationController.move_y_to(y)
-    while squidController.microcontroller.is_busy():
-        time.sleep(0.005)
-    squidController.navigationController.move_z_to(z)
-    while squidController.microcontroller.is_busy():
-        time.sleep(0.005)
+    if x != 0:
+        squidController.navigationController.move_x_to(x)
+        while squidController.microcontroller.is_busy():
+            time.sleep(0.005)
+    if y != 0:        
+        squidController.navigationController.move_y_to(y)
+        while squidController.microcontroller.is_busy():
+            time.sleep(0.005)
+    if z != 0:    
+        squidController.navigationController.move_z_to(z)
+        while squidController.microcontroller.is_busy():
+            time.sleep(0.005)
     print(f'The stage moved to position ({x},{y},{z})mm')
 
 
