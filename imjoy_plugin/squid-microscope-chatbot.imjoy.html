@@ -31,31 +31,73 @@ def get_schema():
         "move_by_distance": {
             "type": "bioimageio-chatbot-extension",
             "title": "move_by_distance",
-            "description": "Move the stage by a specified distance in millimeters.",
+            "description": "Move the stage by a specified distance in millimeters, the stage will move along the X, Y, and Z axes. You must retur all three numbers. You also must return 0 if you don't to move the stage along that axis.",
             "properties": {
-                "x": {"type": "number", "description": "Move the stage along X axis."},
-                "y": {"type": "number", "description": "Move the stage along Y axis."},
-                "z": {"type": "number", "description": "Move the stage along Z axis."},
+                "x": {"type": "number", "description": "Move the stage along X axis, default is 0."},
+                "y": {"type": "number", "description": "Move the stage along Y axis, default is 0."},
+                "z": {"type": "number", "description": "Move the stage along Z axis,default is 0."},
+            },
+        },
+        "move_to_position": {
+            "type": "bioimageio-chatbot-extension",
+            "title": "move_to_position",
+            "description": "Move the stage to a specified position in millimeters, the stage will move to the specified X, Y, and Z coordinates. You must retur all three numbers. You also must return 0 if you don't to move the stage along that axis.",
+            "properties": {
+                "x": {"type": "number", "description": "Move the stage to the X coordinate, default is 0."},
+                "y": {"type": "number", "description": "Move the stage to the Y coordinate, default is 0."},
+                "z": {"type": "number", "description": "Move the stage to the Z coordinate, default is 0."},
+            },
+        },
+        "auto_focus": {
+            "type": "bioimageio-chatbot-extension",
+            "title": "auto_focus",
+            "description": "Autofocus the microscope, the value returned is just 1. If this action is required, it will execute before snapping an image.",
+            "properties": {
+                "none": {"type": "number", "description": "No input is required,just give a number 1"},
             },
         },
         "snap_image": {
             "type": "bioimageio-chatbot-extension",
             "title": "snap_image",
-            "description": "Snap an image from the microscope with specified exposure time.",
+            "description": "Snap an image from the microscope with specified exposure time. The value returned is the URL of the image.",
             "properties": {
                 "exposure": {"type": "number", "description": "Set the microscope camera's exposure time in milliseconds."},
             },
         }
     }
 
+def move_to_position(config):
+    print("Moving the stage to position:", config)
+    if config["x"] is None:
+        config["x"] = 0
+    if config["y"] is None:
+        config["y"] = 0
+    if config["z"] is None:
+        config["z"] = 0
+    elif config["z"] > 4.7 or config["z"] < 0.0:
+        error = "The Z axis is out of range, the maximum value is 5."
+        return {"error": error}
+    squid_svc.move_to_position(config["x"], config["y"], config["z"])
+    return {"result": "Moved the stage!"}
+
 def move_by_distance(config):
-    
+    print("Moving the stage by distance:", config)
+    if config["x"] is None:
+        config["x"] = 0
+    if config["y"] is None:
+        config["y"] = 0
+    if config["z"] is None:
+        config["z"] = 0
     squid_svc.move_by_distance(config["x"], config["y"], config["z"])
     return {"result": "Moved the stage!"}
 
-def snap_image(config):
-    squid_image_url = squid_svc.snap()
-    return squid_image_url
+async def auto_focus(config):
+    squid_svc.auto_focus()
+    return {"result": "Auto focused!"}
+async def snap_image(config):
+    squid_image_url = await squid_svc.snap()
+    resp = f"![Squid Image]({squid_image_url})"
+    return resp
 
 async def setup():
     global squid_svc
@@ -73,6 +115,8 @@ async def setup():
         "get_schema": get_schema,
         "tools": {
             "move_by_distance": move_by_distance,
+            "move_to_position": move_to_position, 
+            "auto_focus": auto_focus, 
             "snap_image": snap_image,
         }
     }

@@ -25,11 +25,11 @@ import json
 import webbrowser
 from squid_control.squid_controller import SquidController
 #import squid_control.squid_chatbot as chatbot
-
+import cv2
 
 current_x, current_y = 0,0
 
-squidController= SquidController(is_simulation=True)
+squidController= SquidController(is_simulation=False)
 
 class VideoTransformTrack(MediaStreamTrack):
     """
@@ -44,7 +44,7 @@ class VideoTransformTrack(MediaStreamTrack):
 
     async def recv(self):
         # Read frame from squid controller, now correctly formatted as BGR
-        bgr_img = one_new_frame
+        bgr_img = one_new_frame()
         # Create the video frame
         new_frame = VideoFrame.from_ndarray(bgr_img, format="bgr24")
         new_frame.pts = self.count
@@ -200,7 +200,9 @@ def snap(context=None):
     squidController.liveController.turn_off_illumination()
     gray_img=np.resize(gray_img,(500,500))
     bgr_img = np.stack((gray_img,)*3, axis=-1)  # Duplicate grayscale data across 3 channels to simulate BGR format.
-    file_id = datastore.put('file', bgr_img.tobytes(), 'snapshot.png')
+    _, png_image = cv2.imencode('.png', bgr_img)
+    # Store the PNG image
+    file_id = datastore.put('file', png_image.tobytes(), 'snapshot.png', "Captured microscope image in PNG format")
     print(f'The image is snapped and saved as {datastore.get_url(file_id)}')
     return datastore.get_url(file_id)
 
