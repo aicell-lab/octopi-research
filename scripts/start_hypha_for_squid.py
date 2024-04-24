@@ -201,7 +201,16 @@ def snap(context=None):
     if squidController.microcontroller.is_busy():
         time.sleep(0.005)
     squidController.liveController.turn_off_illumination()
-    gray_img=np.resize(gray_img,(500,500))
+    gray_img=np.resize(gray_img,(512,512))
+    # Rescale the image to span the full 0-255 range
+    min_val = np.min(gray_img)
+    max_val = np.max(gray_img)
+    if max_val > min_val:  # Avoid division by zero if the image is completely uniform
+        gray_img = (gray_img - min_val) * (255 / (max_val - min_val))
+        gray_img = gray_img.astype(np.uint8)  # Convert to 8-bit image
+    else:
+        gray_img = np.zeros((512, 512), dtype=np.uint8)  # If no variation, return a black image
+
     bgr_img = np.stack((gray_img,)*3, axis=-1)  # Duplicate grayscale data across 3 channels to simulate BGR format.
     _, png_image = cv2.imencode('.png', bgr_img)
     # Store the PNG image
