@@ -152,7 +152,8 @@ class SquidController:
         self.navigationController.zero_x()
         self.slidePositionController.homing_done = True
 
-        
+    init_stage()
+            
     def move_to_scaning_position(self):
         # move to scanning position
         self.navigationController.move_x(20)
