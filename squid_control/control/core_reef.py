@@ -963,9 +963,9 @@ class AutoFocusController():
         self.navigationController = navigationController
         self.liveController = liveController
         self.N = 15
-        self.deltaZ = 0.01
-        self.deltaZ_um = self.deltaZ*1000
-        self.deltaZ_usteps = 1.524
+        self.deltaZ = None
+        self.deltaZ_um = 1.524
+        self.deltaZ_usteps = None
         self.crop_width = AF.CROP_WIDTH
         self.crop_height = AF.CROP_HEIGHT
         self.autofocus_in_progress = False
