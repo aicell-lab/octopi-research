@@ -179,13 +179,13 @@ class SquidController:
         self.multipointController.set_base_path(DEFAULT_SAVING_PATH)
         self.multipointController.set_selected_configurations(illuminate_channels)
         self.multipointController.do_autofocus = do_autofocus
-        self.autofocusController.set_deltaZ(self.autofocusController.deltaZ_um)
+        self.autofocusController.set_deltaZ(1.524)
         self.multipointController.start_new_experiment(action_ID)
         self.multipointController.run_acquisition_reef(location_list=location_list)
     
     def do_autofocus(self):
-        self.autofocusController.set_deltaZ(self.autofocusController.deltaZ_um)
-        self.autofocusController.set_N(self.autofocusController.N)
+        self.autofocusController.set_deltaZ(1.524)
+        self.autofocusController.set_N(15)
         self.autofocusController.autofocus()
         self.autofocusController.wait_till_autofocus_has_completed()
 

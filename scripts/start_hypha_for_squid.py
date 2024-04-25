@@ -201,7 +201,7 @@ def snap(context=None):
     if squidController.microcontroller.is_busy():
         time.sleep(0.005)
     squidController.liveController.turn_off_illumination()
-    gray_img=np.resize(gray_img,(512,512))
+    #gray_img=np.resize(gray_img,(512,512))
     # Rescale the image to span the full 0-255 range
     min_val = np.min(gray_img)
     max_val = np.max(gray_img)
@@ -382,9 +382,7 @@ def auto_focus(context=None):
     Auto focus the camera.
 
     """
-    squidController.autofocusController.autofocus()
-    while squidController.microcontroller.is_busy():
-        time.sleep(0.005)
+    squidController.do_autofocus()
     print('The camera is auto focused')
 
 async def start_service(service_id, workspace=None, token=None):
