@@ -182,6 +182,13 @@ class SquidController:
         self.autofocusController.set_deltaZ(self.autofocusController.deltaZ_um)
         self.multipointController.start_new_experiment(action_ID)
         self.multipointController.run_acquisition_reef(location_list=location_list)
+    
+    def do_autofocus(self):
+        self.autofocusController.set_deltaZ(self.autofocusController.deltaZ_um)
+        self.autofocusController.set_N(self.autofocusController.N)
+        self.autofocusController.autofocus()
+        self.autofocusController.wait_till_autofocus_has_completed()
+
         
     def scan_well_plate(self, action_ID='01'):
         # start the acquisition loop

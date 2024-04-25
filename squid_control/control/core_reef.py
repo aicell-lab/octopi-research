@@ -962,7 +962,7 @@ class AutoFocusController():
         self.camera = camera
         self.navigationController = navigationController
         self.liveController = liveController
-        self.N = 10
+        self.N = 15
         self.deltaZ = 0.01
         self.deltaZ_um = self.deltaZ*1000
         self.deltaZ_usteps = 1.524
@@ -1004,7 +1004,6 @@ class AutoFocusController():
 
         self.autofocus_in_progress = True
 
-        # create a QThread object
         try:
             if self.thread.isRunning():
                 print('*** autofocus thread is still running ***')
@@ -1656,14 +1655,17 @@ class MultiPointController():
         for configuration_name in selected_configurations_name:
             self.selected_configurations.append(next((config for config in self.configurationManager.configurations if config.name == configuration_name)))
         
-    def run_acquisition_reef(self, location_list=None): 
-        print('start multipoint')
+    def run_acquisition_reef(self, location_list=None,scanCoordinates=None): 
+        print('start acuisition')
         self.tile_stitchers = {}
         print(str(self.Nt) + '_' + str(self.NX) + '_' + str(self.NY) + '_' + str(self.NZ))
         if location_list is not None:
             self.location_list = location_list
         else:
             self.location_list = None
+        
+        if scanCoordinates is None:
+            self.scanCoordinates = None
 
         self.abort_acqusition_requested = False
 
