@@ -1,31 +1,6 @@
-﻿<docs lang="markdown">
-[TODO: write documentation for this plugin.]
-</docs>
-
-<config lang="json">
-{
-  "name": "squid-microscope-chatbot",
-  "type": "web-python",
-  "version": "0.1.0",
-  "description": "This plugin controls squid microscope with chatbot. And will be put on microscope control web GUI",
-  "tags": [],
-  "ui": "",
-  "cover": "",
-  "inputs": null,
-  "outputs": null,
-  "flags": [],
-  "icon": "extension",
-  "api_version": "0.1.8",
-  "env": "",
-  "permissions": [],
-  "requirements": [],
-  "dependencies": []
-}
-</config>
-
-<script lang="python">
 import asyncio
-from imjoy_rpc import api
+from imjoy_rpc.hypha import connect_to_server, login
+
 def get_schema():
     return {
         "move_by_distance": {
@@ -102,11 +77,8 @@ async def snap_image(config):
 
 async def setup():
     global squid_svc
-    from imjoy_rpc.hypha import connect_to_server
-
     squid_server = await connect_to_server({"server_url": "https://ai.imjoy.io/"})
     squid_svc = await squid_server.get_service("microscope-control-squid")
-
     chatbot_extension = {
         "_rintf": True,
         "id": "squid-control",
@@ -122,15 +94,14 @@ async def setup():
         }
     }
 
-    chatbot = await api.createWindow(
-        src="https://bioimage.io/chat",
-        name="Microscope-Control Chatbot",
-    )
-    #chatbot_extension._rintf = True  # make the chatbot extension as an interface
-    await chatbot.registerExtension(chatbot_extension)
-    print('Chatbot extension registered.')
 
-api.export({"setup": setup})
+    server_url = "https://chat.bioimage.io"
+    token = await login({"server_url": server_url})
+    server = await connect_to_server({"server_url": server_url, "token": token})
+    svc = await server.register_service(chatbot_extension)
+    print(f"Extension service registered with id: {svc.id}, you can visit the service at: https://bioimage.io/chat?server={server_url}&extension={svc.id}")
 
-
-</script>
+if __name__ == "__main__":
+   loop = asyncio.get_event_loop()
+   loop.create_task(setup())
+   loop.run_forever()

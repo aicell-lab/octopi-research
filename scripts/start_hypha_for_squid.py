@@ -29,7 +29,7 @@ import cv2
 
 current_x, current_y = 0,0
 
-squidController= SquidController(is_simulation=False)
+squidController= SquidController(is_simulation=True)
 
 class VideoTransformTrack(MediaStreamTrack):
     """
@@ -197,7 +197,7 @@ def snap(context=None):
         time.sleep(0.05)
     gray_img = squidController.camera.read_frame()
     time.sleep(0.05)
-    squidController.liveController.set_illumination(0,0)
+    #squidController.liveController.set_illumination(0,0)
     if squidController.microcontroller.is_busy():
         time.sleep(0.005)
     squidController.liveController.turn_off_illumination()
