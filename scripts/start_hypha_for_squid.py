@@ -146,7 +146,6 @@ def move_to_position(x,y,z, context=None):
             time.sleep(0.005)
     print(f'The stage moved to position ({x},{y},{z})mm')
 
-
 def get_status(context=None):
     """
     Get the current status of the microscope.
@@ -186,13 +185,13 @@ def one_new_frame(context=None):
     return bgr_img
 
 
-def snap(context=None):
+def snap(exposure, channel, intensity,context=None):
     """
     Get the current frame from the camera, converted to a 3-channel BGR image.
     """
     squidController.camera.send_trigger()
     squidController.liveController.turn_on_illumination()
-    squidController.liveController.set_illumination(0,44)
+    squidController.liveController.set_illumination(channel,intensity)
     if squidController.microcontroller.is_busy():
         time.sleep(0.05)
     gray_img = squidController.camera.read_frame()
@@ -270,7 +269,7 @@ def set_illumination(illumination_source,intensity, context=None):
     Set the intensity of the bright field illumination.
     illumination_source : int
     intensity : float, 0-100
-    If you want to know the illumination source's and intensity's number, you can check the 'channel_configurations.xml' file.
+    If you want to know the illumination source's and intensity's number, you can check the 'squid_control/channel_configurations.xml' file.
     """
     squidController.liveController.set_illumination(illumination_source,intensity)
     print(f'The intensity of the {illumination_source} illumination is set to {intensity}.')
@@ -362,7 +361,7 @@ def zero_z(context=None):
     print('The stage moved to zero position in z axis')
 
 
-def move_to_zero_position(context=None):
+def move_to_loading_position(context=None):
     """
     Move the stage to the loading position.
 
@@ -377,6 +376,17 @@ def auto_focus(context=None):
     """
     squidController.do_autofocus()
     print('The camera is auto focused')
+
+def navigate_to_well(row,col, wellplate_type, context=None):
+    """
+    Navigate to the specified well position in the well plate.
+    row : int
+    col : int
+    wellplate_type : str, can be '6', '12', '24', '96', '384'
+    """
+    
+    squidController.platereader_move_to_well(row,col)
+    print(f'The stage moved to well position ({row},{col})')
 
 async def start_service(service_id, workspace=None, token=None):
     client_id = service_id + "-client"
@@ -439,7 +449,7 @@ async def start_service(service_id, workspace=None, token=None):
             "zero_y": zero_y,
             "zero_z": zero_z,
             "move_to_position": move_to_position,      
-            "move_to_zero_position": move_to_zero_position,
+            "move_to_loading_position": move_to_loading_position,
             "auto_focus": auto_focus,
         }
     )
@@ -504,13 +514,28 @@ def get_schema():
             "description": "Snap an image from the microscope with specified exposure time. The value returned is the URL of the image.",
             "properties": {
                 "exposure": {"type": "number", "description": "Set the microscope camera's exposure time in milliseconds."},
+                "channel": {"type": "number", "description": "Set the channel of the illumination source. The illumination source and number is: [Bright Field=0, Fluorescence 405 nm=11, Fluorescence 488 nm=12,  Fluorescence 638 nm=13, Fluorescence 561 nm=14, Fluorescence 730 nm=15]The default value is 0."},
+                "intensity": {"type": "number", "description": "Set the intensity of the illumination source. The default value for bright field is 44, for fluorescence is 100."},
+            },  
+        },
+        "move_to_loading_position": {   
+            "type": "bioimageio-chatbot-extension",
+            "title": "move_to_loading_position",
+            "description": "When sample need to be loaded or unloaded, move the stage to the zero position so that the robotic arm can reach the sample.",
+            "properties": {
+                "is_loading": {"type": "boolean", "description": "True if the sample is being loaded, False if the sample is being unloaded."},
             },
         },
-        "move_to_zero_position": {   
+        "navigate_to_well": {
             "type": "bioimageio-chatbot-extension",
-            "title": "move_to_zero_position",
-            "description": "When sample need to be loaded or unloaded, move the stage to the zero position so that the robotic arm can reach the sample.",
-        },
+            "title": "navigate_to_well",
+            "description": "Navigate to the specified well position in the well plate.",
+            "properties": {
+                "row": {"type": "number", "description": "The row number of the well position."},
+                "col": {"type": "number", "description": "The column number of the well position."},
+                "wellplate_type": {"type": "string", "description": "The type of the well plate, can be '6', '12', '24', '96', '384'."},
+            },
+        }
     }
 
 
@@ -543,9 +568,22 @@ def auto_focus_schema(config):
     auto_focus()
     return {"result": "Auto focused!"}
 def snap_image_schema(config):
-    squid_image_url = snap()
+    if config["exposure"] is None:
+        config["exposure"] = 100
+    if config["channel"] is None:
+        config["channel"] = 0
+    if config["intensity"] is None:
+        config["intensity"] = 44
+    squid_image_url = snap(config["exposure"], config["channel"], config["intensity"])
     resp = f"![Image]({squid_image_url})"
     return resp
+def move_to_loading_position_schema(config):
+    move_to_loading_position()
+    return {"result": "Moved the stage to loading position!"}
+
+def navigate_to_well_schema(config):
+    navigate_to_well(config["row"], config["col"], config["wellplate_type"])
+    return {"result": "Moved the stage to the specified well position!"}
 
 async def setup():
     
@@ -554,13 +592,15 @@ async def setup():
         "id": "squid-control",
         "type": "bioimageio-chatbot-extension",
         "name": "Squid Microscope Control",
-        "description": "You are a chatbot majoring a microscope. Your mission is answering the user's questions, and also controlling the microscope according to the user's commands. Remember, you are controlling a real microscope, distinguish the questions and commands, and execute them correctly.",
+        "description": "Your role: A chatbot controlling a microscope; Your mission: Answering the user's questions, and executing the commands to control the microscope; Definition of microscope: OBJECTIVES: {20x (Boli),'magnification':20, 'NA':0.4, 'tube length focus length':180mm}, ",
         "get_schema": get_schema,
         "tools": {
             "move_by_distance": move_by_distance_schema,
             "move_to_position": move_to_position_schema, 
             "auto_focus": auto_focus_schema, 
             "snap_image": snap_image_schema,
+            "move_to_loading_position": move_to_loading_position_schema,
+            "navigate_to_well": navigate_to_well_schema,
         }
     }
 
@@ -581,7 +621,7 @@ async def setup():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="WebRTC demo for video streaming"
+        description="Squid microscope control services for Hypha."
     )
     parser.add_argument("--simulation", type=bool, default=True, help="The simulation mode")
     parser.add_argument("--service-id", type=str, default="squid-control", help="The service id")
@@ -594,13 +634,29 @@ if __name__ == "__main__":
         logging.basicConfig(level=logging.INFO)
 
     loop = asyncio.get_event_loop()
-    loop.create_task(start_service(
-        args.service_id,
-        workspace=None,
-        token=None,
-    ))
-    loop.create_task(setup())
+    tasks = [
+        loop.create_task(start_service(
+            args.service_id,
+            workspace=None,
+            token=None,
+        )),
+        loop.create_task(setup())
+    ]
+
+    # Register a callback for when the asyncio loop closes to handle any cleanup
+    for task in tasks:
+        task.add_done_callback(lambda t: loop.stop() if t.exception() else None)
+
+    try:
+        loop.run_forever()
+    except KeyboardInterrupt:
+        print("Shutting down gracefully")
+    finally:
+        # Gather all tasks and cancel them to ensure clean exit
+        all_tasks = asyncio.all_tasks(loop)
+        for t in all_tasks:
+            t.cancel()
+        loop.run_until_complete(loop.shutdown_asyncgens())
+        loop.close()
 
     
-
-    loop.run_forever()

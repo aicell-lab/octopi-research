@@ -66,7 +66,7 @@ class OctopiGUI(QMainWindow):
         self.microcontroller.configure_actuators()
 
         self.objectiveStore = core.ObjectiveStore()
-        self.configurationManager = core.ConfigurationManager('./channel_configurations.xml')
+        self.configurationManager = core.ConfigurationManager('./squid_control/channel_configurations.xml')
         self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
         self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
         self.navigationController = core.NavigationController(self.microcontroller)

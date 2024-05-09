@@ -65,15 +65,16 @@ class SquidController:
         # configure the actuators
         self.microcontroller.configure_actuators()
 
-        self.configurationManager = core.ConfigurationManager(filename='./channel_configurations.xml')
+        self.configurationManager = core.ConfigurationManager(filename='./squid_control/squid_control/channel_configurations.xml')
 
         self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
         self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
         self.navigationController = core.NavigationController(self.microcontroller)
-        self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController,is_for_wellplate=True)
+        #self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController,is_for_wellplate=True)
         self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
         self.scanCoordinates = core.ScanCoordinates()
         self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates,parent=self)
+        #self.plateReaderNavigationController = core.PlateReaderNavigationController(self.microcontroller)
         if ENABLE_TRACKING:
             self.trackingController = core.TrackingController(self.camera,self.microcontroller,self.navigationController,self.configurationManager,self.liveController,self.autofocusController,self.imageDisplayWindow)
         
@@ -95,7 +96,7 @@ class SquidController:
         if SUPPORT_LASER_AUTOFOCUS:
 
             # controllers
-            self.configurationManager_focus_camera = core.ConfigurationManager(filename='./focus_camera_configurations.xml')
+            self.configurationManager_focus_camera = core.ConfigurationManager(filename='./squid_control/focus_camera_configurations.xml')
             self.streamHandler_focus_camera = core.StreamHandler()
             self.liveController_focus_camera = core.LiveController(self.camera_focus,self.microcontroller,self.configurationManager_focus_camera,control_illumination=False,for_displacement_measurement=True)
             self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates,parent=self)
@@ -224,7 +225,26 @@ class SquidController:
         self.multipointController.start_new_experiment(action_ID)
         self.multipointController.run_acquisition_reef(location_list=location_list)
         
-
+    def platereader_move_to_well(self,row,column, wellplate_type='24'):
+        if wellplate_type == '6':
+            wellplate_format = WELLPLATE_FORMAT_6
+        elif wellplate_type == '24':
+            wellplate_format = WELLPLATE_FORMAT_24
+        elif wellplate_type == '96':
+            wellplate_format = WELLPLATE_FORMAT_96
+        elif wellplate_type == '384':
+            wellplate_format = WELLPLATE_FORMAT_384 
+        
+        if column != 0 and column != None:
+            mm_per_ustep_X = SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X)
+            x_mm = wellplate_format.A1_X_MM + (int(column)-1)*wellplate_format.WELL_SPACING_MM
+            x_usteps = STAGE_MOVEMENT_SIGN_X*round(x_mm/mm_per_ustep_X)
+            self.microcontroller.move_x_to_usteps(x_usteps)
+        if row != 0 and row != None:
+            mm_per_ustep_Y = SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y)
+            y_mm = wellplate_format.A1_Y_MM + (ord(row) - ord('A'))*wellplate_format.WELL_SPACING_MM
+            y_usteps = STAGE_MOVEMENT_SIGN_Y*round(y_mm/mm_per_ustep_Y)
+            self.microcontroller.move_y_to_usteps(y_usteps)
 
     def close(self):
 

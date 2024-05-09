@@ -2169,7 +2169,7 @@ class LaserAutofocusController():
             time.sleep(SLEEP_TIME_S)
         
 class ConfigurationManager():
-    def __init__(self,filename="channel_configurations.xml"):
+    def __init__(self,filename="squid_control/channel_configurations.xml"):
         self.config_filename = filename
         self.configurations = []
         self.read_configurations()
