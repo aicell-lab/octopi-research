@@ -152,8 +152,6 @@ class SquidController:
         self.navigationController.zero_x()
         self.slidePositionController.homing_done = True
 
-            
-    def move_to_scaning_position(self):
         # move to scanning position
         self.navigationController.move_x(20)
         while self.microcontroller.is_busy():
@@ -171,6 +169,33 @@ class SquidController:
             if time.time() - t0 > 5:
                 print('z return timeout, the program will exit')
                 exit()
+
+        # set software limits        
+        self.navigationController.set_x_limit_pos_mm(SOFTWARE_POS_LIMIT.X_POSITIVE)
+        self.navigationController.set_x_limit_neg_mm(SOFTWARE_POS_LIMIT.X_NEGATIVE)
+        self.navigationController.set_y_limit_pos_mm(SOFTWARE_POS_LIMIT.Y_POSITIVE)
+        self.navigationController.set_y_limit_neg_mm(SOFTWARE_POS_LIMIT.Y_NEGATIVE)
+            
+    def move_to_scaning_position(self):
+        # move to scanning position
+        self.navigationController.move_z_to(0.4)
+        self.navigationController.move_x(20)
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+        self.navigationController.move_y(20)
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+
+        # move z
+        self.navigationController.move_z_to(DEFAULT_Z_POS_MM)
+        # wait for the operation to finish
+        t0 = time.time() 
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+            if time.time() - t0 > 5:
+                print('z return timeout, the program will exit')
+                exit()
+    
     
     def plate_scan(self,well_plate_type='test', illuminate_channels=['BF LED matrix full'], do_autofocus=True, action_ID='testPlateScan'):
         # start the acquisition loop

@@ -827,7 +827,7 @@ class SlidePositionControlWorker():
 
 class SlidePositionController():
 
-    def __init__(self,navigationController,liveController,is_for_wellplate=False):
+    def __init__(self,navigationController,liveController,is_for_wellplate=True):
         self.navigationController = navigationController
         self.liveController = liveController
         self.slide_loading_position_reached = False

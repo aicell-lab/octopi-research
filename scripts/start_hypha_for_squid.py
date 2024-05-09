@@ -361,20 +361,13 @@ def zero_z(context=None):
         time.sleep(0.005)
     print('The stage moved to zero position in z axis')
 
-def move_to_loading_position(context=None):
+
+def move_to_zero_position(context=None):
     """
     Move the stage to the loading position.
 
     """
-    squidController.navigationController.zero_z()
-    while squidController.microcontroller.is_busy():
-        time.sleep(0.005)
-    squidController.navigationController.zero_x()
-    while squidController.microcontroller.is_busy():
-        time.sleep(0.005)
-    squidController.navigationController.zero_y()
-    while squidController.microcontroller.is_busy():
-        time.sleep(0.005)
+    squidController.slidePositionController.move_to_slide_loading_position()
     print('The stage moved to loading position')
 
 def auto_focus(context=None):
@@ -446,7 +439,7 @@ async def start_service(service_id, workspace=None, token=None):
             "zero_y": zero_y,
             "zero_z": zero_z,
             "move_to_position": move_to_position,      
-            "move_to_loading_position": move_to_loading_position,
+            "move_to_zero_position": move_to_zero_position,
             "auto_focus": auto_focus,
         }
     )
@@ -512,7 +505,12 @@ def get_schema():
             "properties": {
                 "exposure": {"type": "number", "description": "Set the microscope camera's exposure time in milliseconds."},
             },
-        }
+        },
+        "move_to_zero_position": {   
+            "type": "bioimageio-chatbot-extension",
+            "title": "move_to_zero_position",
+            "description": "When sample need to be loaded or unloaded, move the stage to the zero position so that the robotic arm can reach the sample.",
+        },
     }
 
 

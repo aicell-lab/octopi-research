@@ -3,7 +3,7 @@ cache/
 .vscode
 chat_logs/
 docs/test.html
-
+logs/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
