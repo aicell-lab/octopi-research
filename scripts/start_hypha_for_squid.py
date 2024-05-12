@@ -13,8 +13,6 @@ import fractions
 import numpy as np
 #from av import VideoFrame
 from imjoy_rpc.hypha import login, connect_to_server, register_rtc_service
-#from imjoy_rpc.hypha.sync import register_rtc_service
-#import aiortc
 from aiortc import MediaStreamTrack, RTCPeerConnection, RTCSessionDescription, RTCConfiguration
 
 from aiortc.contrib.media import MediaPlayer, MediaRelay, MediaStreamTrack
@@ -29,7 +27,8 @@ import cv2
 
 current_x, current_y = 0,0
 
-squidController= SquidController(is_simulation=True)
+global squidController
+#squidController= SquidController(is_simulation=args.simulation)
 
 class VideoTransformTrack(MediaStreamTrack):
     """
@@ -99,18 +98,15 @@ def move_by_distance(x,y,z, context=None):
                 - report_url: the report URL
                 - key: the key for the login
     """
-    squidController.navigationController.move_x(x)
-    while squidController.microcontroller.is_busy():
-        time.sleep(0.005)
-    squidController.navigationController.move_y(y)
-    while squidController.microcontroller.is_busy():
-        time.sleep(0.005)
-    squidController.navigationController.move_z(z)
-    while squidController.microcontroller.is_busy():
-        time.sleep(0.005)
-    print(f'The stage moved ({x},{y},{z})mm through x,y,z axis')
-
-
+    is_success, x_pos, y_pos,z_pos, x_des, y_des, z_des =squidController.move_by_distance_safely(x,y,z)
+    if is_success:
+        result = f'The stage moved ({x},{y},{z})mm through x,y,z axis, from ({x_pos},{y_pos},{z_pos})mm to ({x_des},{y_des},{z_des})mm'
+        print(result)
+        return(result)
+    else:
+        result = f'The stage can not move ({x},{y},{z})mm through x,y,z axis, from ({x_pos},{y_pos},{z_pos})mm to ({x_des},{y_des},{z_des})mm because out of the range.'
+        print(result)
+        return(result)
         
 def move_to_position(x,y,z, context=None):
     """
@@ -133,18 +129,29 @@ def move_to_position(x,y,z, context=None):
 
     """
     if x != 0:
-        squidController.navigationController.move_x_to(x)
-        while squidController.microcontroller.is_busy():
-            time.sleep(0.005)
+        is_success, x_pos, y_pos,z_pos, x_des = squidController.move_x_to_safely(x)
+        if not is_success:
+            result = f'The stage can not move to position ({x},{y},{z})mm from ({x_pos},{y_pos},{z_pos})mm because out of the limit of X Y axis.'
+            print(result)
+            return(result)
+            
     if y != 0:        
-        squidController.navigationController.move_y_to(y)
-        while squidController.microcontroller.is_busy():
-            time.sleep(0.005)
+        is_success, *_ = squidController.move_y_to_safely(y)
+        if not is_success:
+            result = f'The stage can not move to position ({x},{y},{z})mm from ({x_pos},{y_pos},{z_pos})mm because out of the limit of X Y axis.'
+            print(result)
+            return(result)
+            
     if z != 0:    
-        squidController.navigationController.move_z_to(z)
-        while squidController.microcontroller.is_busy():
-            time.sleep(0.005)
-    print(f'The stage moved to position ({x},{y},{z})mm')
+        is_success,*_ = squidController.move_z_to_safely(z)
+        if not is_success:
+            result = f'The stage can not move to position ({x},{y},{z})mm from ({x_pos},{y_pos},{z_pos})mm because out of the limit of Z axis.'
+            print(result)
+            return(result)
+            
+    result = f'The stage moved to position ({x},{y},{z})mm from ({x_pos},{y_pos},{z_pos})mm successfully.'
+    print(result)
+    return(result)
 
 def get_status(context=None):
     """
@@ -185,10 +192,17 @@ def one_new_frame(context=None):
     return bgr_img
 
 
-def snap(exposure, channel, intensity,context=None):
+def snap(exposure_time, channel, intensity,context=None):
     """
     Get the current frame from the camera, converted to a 3-channel BGR image.
     """
+    if exposure_time is None:
+        exposure_time = 100
+    if channel is None:
+        channel = 0
+    if intensity is None:
+        intensity = 44
+    squidController.camera.set_exposure_time(exposure_time)
     squidController.camera.send_trigger()
     squidController.liveController.turn_on_illumination()
     squidController.liveController.set_illumination(channel,intensity)
@@ -274,13 +288,6 @@ def set_illumination(illumination_source,intensity, context=None):
     squidController.liveController.set_illumination(illumination_source,intensity)
     print(f'The intensity of the {illumination_source} illumination is set to {intensity}.')
 
-def set_camera_exposure(exposure_time, context=None):
-    """
-    Set the exposure time of the camera.
-    exposure_time : float, 
-    """
-    squidController.camera.set_exposure_time(exposure_time)
-    print(f'The exposure time of the camera is set to {exposure_time}.')
 
 
 def stop_scan(context=None):
@@ -300,65 +307,12 @@ def stop_scan(context=None):
     print("Stop scanning well plate")
     pass
 
-def home_x(context=None):
+def home_stage(context=None):
     """
-    Move the stage to the home position in x axis.
-
+    Home the stage in z, y, and x axis.
     """
-    squidController.navigationController.home_x(0)
-    while squidController.microcontroller.is_busy():
-        time.sleep(0.005)
-    print('The stage moved to home position in x axis')
-
-def home_y(context=None):
-    """
-    Move the stage to the home position in y axis.
-
-    """
-    squidController.navigationController.home_y(0)
-    while squidController.microcontroller.is_busy():
-        time.sleep(0.005)
-    print('The stage moved to home position in y axis')
-
-def home_z(context=None):
-    """
-    Move the stage to the home position in z axis.
-
-    """
-    squidController.navigationController.home_z(0)
-    while squidController.microcontroller.is_busy():
-        time.sleep(0.005)
-    print('The stage moved to home position in z axis')
-
-def zero_x(context=None):
-    """
-    Move the stage to the zero position in x axis.
-
-    """
-    squidController.navigationController.zero_x()
-    while squidController.microcontroller.is_busy():
-        time.sleep(0.005)
-    print('The stage moved to zero position in x axis')
-
-def zero_y(context=None):
-    """
-    Move the stage to the zero position in y axis.
-
-    """
-    squidController.navigationController.zero_y()
-    while squidController.microcontroller.is_busy():
-        time.sleep(0.005)
-    print('The stage moved to zero position in y axis')
-
-def zero_z(context=None):
-    """
-    Move the stage to the zero position in z axis.
-
-    """
-    squidController.navigationController.zero_z()
-    while squidController.microcontroller.is_busy():
-        time.sleep(0.005)
-    print('The stage moved to zero position in z axis')
+    squidController.home_stage()
+    print('The stage moved to home position in z, y, and x axis')
 
 
 def move_to_loading_position(context=None):
@@ -384,8 +338,9 @@ def navigate_to_well(row,col, wellplate_type, context=None):
     col : int
     wellplate_type : str, can be '6', '12', '24', '96', '384'
     """
-    
-    squidController.platereader_move_to_well(row,col)
+    if wellplate_type is None:
+        wellplate_type = '24'
+    squidController.platereader_move_to_well(row,col,wellplate_type)
     print(f'The stage moved to well position ({row},{col})')
 
 async def start_service(service_id, workspace=None, token=None):
@@ -402,30 +357,30 @@ async def start_service(service_id, workspace=None, token=None):
         }
     )
     
-    # async def on_init(peer_connection):
-    #     @peer_connection.on("track")
-    #     def on_track(track):
-    #         squidController.camera.send_trigger()
-    #         squidController.liveController.turn_on_illumination()
-    #         squidController.liveController.set_illumination(0,44)
-    #         if squidController.microcontroller.is_busy():
-    #             time.sleep(0.05)
-    #         print(f"Track {track.kind} received")
+    async def on_init(peer_connection):
+        @peer_connection.on("track")
+        def on_track(track):
+            squidController.camera.send_trigger()
+            squidController.liveController.turn_on_illumination()
+            squidController.liveController.set_illumination(0,44)
+            if squidController.microcontroller.is_busy():
+                time.sleep(0.05)
+            print(f"Track {track.kind} received")
 
-    #         peer_connection.addTrack(
-    #             VideoTransformTrack()
-    #         )
+            peer_connection.addTrack(
+                VideoTransformTrack()
+            )
          
-    #         @track.on("ended")
-    #         async def on_ended():
-    #             squidController.liveController.turn_off_illumination()
-    #             if squidController.microcontroller.is_busy():
-    #                 time.sleep(0.05)
-    #             print(f"Track {track.kind} ended")
+            @track.on("ended")
+            async def on_ended():
+                squidController.liveController.turn_off_illumination()
+                if squidController.microcontroller.is_busy():
+                    time.sleep(0.05)
+                print(f"Track {track.kind} ended")
     
-    #     data_channel = peer_connection.createDataChannel("microscopeStatus")
-    #     # Start the task to send stage position periodically
-    #     asyncio.create_task(send_status(data_channel))
+        data_channel = peer_connection.createDataChannel("microscopeStatus")
+        # Start the task to send stage position periodically
+        asyncio.create_task(send_status(data_channel))
 
     await server.register_service(
         {
@@ -442,12 +397,7 @@ async def start_service(service_id, workspace=None, token=None):
             "on_illumination": open_illumination,
             "scan_well_plate": scan_well_plate,
             "stop_scan": stop_scan,
-            "home_x": home_x,
-            "home_y": home_y,
-            "home_z": home_z,
-            "zero_x": zero_x,
-            "zero_y": zero_y,
-            "zero_z": zero_z,
+            "home_stage": home_stage,
             "move_to_position": move_to_position,      
             "move_to_loading_position": move_to_loading_position,
             "auto_focus": auto_focus,
@@ -499,6 +449,14 @@ def get_schema():
                 "z": {"type": "number", "description": "Move the stage to the Z coordinate, default is 0."},
             },
         },
+        "home_stage": {
+            "type": "bioimageio-chatbot-extension",
+            "title": "home_stage",
+            "description": "The stage will move to the home position and recalibrate, then move to scanning position:(20,20,2)",
+            "properties": {
+                "is_home": {"type": "boolean", "description": "True if the stage is homed, False if the stage is not homed."},
+            },
+        },
         "auto_focus": {
             "type": "bioimageio-chatbot-extension",
             "title": "auto_focus",
@@ -511,10 +469,10 @@ def get_schema():
         "snap_image": {
             "type": "bioimageio-chatbot-extension",
             "title": "snap_image",
-            "description": "Snap an image from the microscope with specified exposure time. The value returned is the URL of the image.",
+            "description": "Snap an image and show it to user. The value returned is the URL of the image.",
             "properties": {
                 "exposure": {"type": "number", "description": "Set the microscope camera's exposure time in milliseconds."},
-                "channel": {"type": "number", "description": "Set the channel of the illumination source. The illumination source and number is: [Bright Field=0, Fluorescence 405 nm=11, Fluorescence 488 nm=12,  Fluorescence 638 nm=13, Fluorescence 561 nm=14, Fluorescence 730 nm=15]The default value is 0."},
+                "channel": {"type": "number", "description": "Set light source. Default value is 0. The illumination source and number is: [Bright Field=0, Fluorescence 405 nm=11, Fluorescence 488 nm=12,  Fluorescence 638 nm=13, Fluorescence 561 nm=14, Fluorescence 730 nm=15]."},
                 "intensity": {"type": "number", "description": "Set the intensity of the illumination source. The default value for bright field is 44, for fluorescence is 100."},
             },  
         },
@@ -531,9 +489,9 @@ def get_schema():
             "title": "navigate_to_well",
             "description": "Navigate to the specified well position in the well plate.",
             "properties": {
-                "row": {"type": "number", "description": "The row number of the well position."},
+                "row": {"type": "string", "description": "The letter represents row number of the well position. Like 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'...."},
                 "col": {"type": "number", "description": "The column number of the well position."},
-                "wellplate_type": {"type": "string", "description": "The type of the well plate, can be '6', '12', '24', '96', '384'."},
+                "wellplate_type": {"type": "string", "description": "The type of the well plate. Default type is '24', can be '6', '12', '24', '96', '384'."},
             },
         }
     }
@@ -547,11 +505,8 @@ def move_to_position_schema(config):
         config["y"] = 0
     if config["z"] is None:
         config["z"] = 0
-    elif config["z"] > 4.7 or config["z"] < 0.0:
-        error = "The Z axis is out of range, the maximum value is 5."
-        return {"error": error}
-    move_to_position(config["x"], config["y"], config["z"])
-    return {"result": "Moved the stage!"}
+    result = move_to_position(config["x"], config["y"], config["z"])
+    return {"result": result}
 
 def move_by_distance_schema(config):
     print("Moving the stage by distance:", config)
@@ -561,8 +516,12 @@ def move_by_distance_schema(config):
         config["y"] = 0
     if config["z"] is None:
         config["z"] = 0
-    move_by_distance(config["x"], config["y"], config["z"])
-    return {"result": "Moved the stage!"}
+    result = move_by_distance(config["x"], config["y"], config["z"])
+    return {"result": result}
+
+def home_stage_schema(config):
+    home_stage()
+    return {"result": "The stage is homed."}
 
 def auto_focus_schema(config):
     auto_focus()
@@ -592,13 +551,14 @@ async def setup():
         "id": "squid-control",
         "type": "bioimageio-chatbot-extension",
         "name": "Squid Microscope Control",
-        "description": "Your role: A chatbot controlling a microscope; Your mission: Answering the user's questions, and executing the commands to control the microscope; Definition of microscope: OBJECTIVES: {20x (Boli),'magnification':20, 'NA':0.4, 'tube length focus length':180mm}, ",
+        "description": "Your role: A chatbot controlling a microscope; Your mission: Answering the user's questions, and executing the commands to control the microscope; Definition of microscope: OBJECTIVES: 20x 'NA':0.4, You have one main camera and one autofocus camera. ",
         "get_schema": get_schema,
         "tools": {
             "move_by_distance": move_by_distance_schema,
             "move_to_position": move_to_position_schema, 
             "auto_focus": auto_focus_schema, 
             "snap_image": snap_image_schema,
+            "home_stage": home_stage_schema,
             "move_to_loading_position": move_to_loading_position_schema,
             "navigate_to_well": navigate_to_well_schema,
         }
@@ -627,6 +587,8 @@ if __name__ == "__main__":
     parser.add_argument("--service-id", type=str, default="squid-control", help="The service id")
     parser.add_argument("--verbose", "-v", action="count")
     args = parser.parse_args()
+
+    squidController = SquidController(is_simulation=args.simulation)
 
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)

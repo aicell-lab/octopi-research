@@ -7,14 +7,13 @@ from squid_control.control._def import *
 import logging
 import squid_control.control.serial_peripherals as serial_peripherals
 import squid_control.control.utils_.image_processing as im_processing
-
+import matplotlib.path as mpath
 if SUPPORT_LASER_AUTOFOCUS:
     import squid_control.control.core_displacement_measurement as core_displacement_measurement
 
 import time
 
 class SquidController:
-    # variables
     fps_software_trigger= 100
 
     def __init__(self,is_simulation = True, *args, **kwargs):
@@ -65,12 +64,12 @@ class SquidController:
         # configure the actuators
         self.microcontroller.configure_actuators()
 
-        self.configurationManager = core.ConfigurationManager(filename='./squid_control/squid_control/channel_configurations.xml')
+        self.configurationManager = core.ConfigurationManager(filename='./squid_control/channel_configurations.xml')
 
         self.streamHandler = core.StreamHandler(display_resolution_scaling=DEFAULT_DISPLAY_CROP/100)
         self.liveController = core.LiveController(self.camera,self.microcontroller,self.configurationManager)
         self.navigationController = core.NavigationController(self.microcontroller)
-        #self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController,is_for_wellplate=True)
+        self.slidePositionController = core.SlidePositionController(self.navigationController,self.liveController,is_for_wellplate=True)
         self.autofocusController = core.AutoFocusController(self.camera,self.navigationController,self.liveController)
         self.scanCoordinates = core.ScanCoordinates()
         self.multipointController = core.MultiPointController(self.camera,self.navigationController,self.liveController,self.autofocusController,self.configurationManager,scanCoordinates=self.scanCoordinates,parent=self)
@@ -236,15 +235,133 @@ class SquidController:
             wellplate_format = WELLPLATE_FORMAT_384 
         
         if column != 0 and column != None:
-            mm_per_ustep_X = SCREW_PITCH_X_MM/(self.x_microstepping*FULLSTEPS_PER_REV_X)
+            mm_per_ustep_X = SCREW_PITCH_X_MM/(self.navigationController.x_microstepping*FULLSTEPS_PER_REV_X)
             x_mm = wellplate_format.A1_X_MM + (int(column)-1)*wellplate_format.WELL_SPACING_MM
             x_usteps = STAGE_MOVEMENT_SIGN_X*round(x_mm/mm_per_ustep_X)
             self.microcontroller.move_x_to_usteps(x_usteps)
         if row != 0 and row != None:
-            mm_per_ustep_Y = SCREW_PITCH_Y_MM/(self.y_microstepping*FULLSTEPS_PER_REV_Y)
+            mm_per_ustep_Y = SCREW_PITCH_Y_MM/(self.navigationController.y_microstepping*FULLSTEPS_PER_REV_Y)
             y_mm = wellplate_format.A1_Y_MM + (ord(row) - ord('A'))*wellplate_format.WELL_SPACING_MM
             y_usteps = STAGE_MOVEMENT_SIGN_Y*round(y_mm/mm_per_ustep_Y)
             self.microcontroller.move_y_to_usteps(y_usteps)
+    
+    def is_point_in_hexagon_border(self, x, y, z):
+        if z >= 4.5 or z <= 0.1:
+            return False
+        # Create a Path object from hexagon points
+        path = mpath.Path(HEXAGON_LIMIT_FOR_WELLPLATE)
+        
+        # Check if the point (x, y) is inside the hexagon
+        return path.contains_point((x, y))
+    
+    def move_x_to_safely(self, x):
+        x_pos,y_pos, z_pos, *_ = self.navigationController.update_pos(microcontroller=self.microcontroller)
+
+        if self.is_point_in_hexagon_border(x, y_pos, z_pos):
+            self.navigationController.move_x_to(x)
+            while self.microcontroller.is_busy():
+                time.sleep(0.005)
+        else:
+            return False, x_pos, y_pos, z_pos, x
+        return True, x_pos, y_pos, z_pos, x
+    
+    def move_y_to_safely(self, y):
+        x_pos,y_pos, z_pos, *_ = self.navigationController.update_pos(microcontroller=self.microcontroller)
+
+        if self.is_point_in_hexagon_border(x_pos, y, z_pos):
+            self.navigationController.move_y_to(y)
+            while self.microcontroller.is_busy():
+                time.sleep(0.005)
+        else:
+            return False, x_pos, y_pos, z_pos, y
+        return True, x_pos, y_pos, z_pos, y
+
+    def move_z_to_safely(self, z):
+        x_pos,y_pos, z_pos, *_ = self.navigationController.update_pos(microcontroller=self.microcontroller)
+
+        if self.is_point_in_hexagon_border(x_pos, y_pos, z):
+            self.navigationController.move_z_to(z)
+            while self.microcontroller.is_busy():
+                time.sleep(0.005)
+        else:
+            return False, x_pos, y_pos, z_pos, z
+        return True, x_pos, y_pos, z_pos, z
+
+
+    def move_by_distance_safely(self, dx, dy, dz):
+        x_pos,y_pos, z_pos, *_ = self.navigationController.update_pos(microcontroller=self.microcontroller)
+
+        if self.is_point_in_hexagon_border(x_pos+dx, y_pos+dy, z_pos+dz):
+            self.navigationController.move_x(dx)
+            while self.microcontroller.is_busy():
+                time.sleep(0.005)
+            self.navigationController.move_y(dy)
+            while self.microcontroller.is_busy():
+                time.sleep(0.005)
+            self.navigationController.move_z(dz)
+            while self.microcontroller.is_busy():
+                time.sleep(0.005)
+        else:
+            return False, x_pos, y_pos, z_pos, x_pos+dx, y_pos+dy, z_pos+dz
+        return True, x_pos, y_pos, z_pos, x_pos+dx, y_pos+dy, z_pos+dz
+    
+    def home_stage(self):
+        # retract the object
+        self.navigationController.home_z()
+        # wait for the operation to finish
+        t0 = time.time()
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+            if time.time() - t0 > 10:
+                print('z homing timeout, the program will exit')
+                exit()
+        print('objective retracted')
+        self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
+
+        # home XY, set zero and set software limit
+        print('home xy')
+        timestamp_start = time.time()
+        # x needs to be at > + 20 mm when homing y
+        self.navigationController.move_x(20) # to-do: add blocking code
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+        # home y
+        self.navigationController.home_y()
+        t0 = time.time()
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+            if time.time() - t0 > 10:
+                print('y homing timeout, the program will exit')
+                exit()
+        self.navigationController.zero_y()
+        # home x
+        self.navigationController.home_x()
+        t0 = time.time()
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+            if time.time() - t0 > 10:
+                print('y homing timeout, the program will exit')
+                exit()
+        self.navigationController.zero_x()
+        self.slidePositionController.homing_done = True
+
+        # move to scanning position
+        self.navigationController.move_x(20)
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+        self.navigationController.move_y(20)
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+
+        # move z
+        self.navigationController.move_z_to(DEFAULT_Z_POS_MM)
+        # wait for the operation to finish
+        t0 = time.time() 
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+            if time.time() - t0 > 5:
+                print('z return timeout, the program will exit')
+                exit()
 
     def close(self):
 
