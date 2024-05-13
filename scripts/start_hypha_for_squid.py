@@ -577,7 +577,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Squid microscope control services for Hypha."
     )
-    parser.add_argument("--simulation", type=bool, default=True, help="The simulation mode")
+    parser.add_argument("--simulation", type=bool, default=False, help="The simulation mode")
     parser.add_argument("--service-id", type=str, default="squid-control", help="The service id")
     parser.add_argument("--verbose", "-v", action="count")
     args = parser.parse_args()
