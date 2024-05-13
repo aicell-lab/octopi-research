@@ -245,19 +245,19 @@ class SquidController:
             y_usteps = STAGE_MOVEMENT_SIGN_Y*round(y_mm/mm_per_ustep_Y)
             self.microcontroller.move_y_to_usteps(y_usteps)
     
-    def is_point_in_hexagon_border(self, x, y, z):
+    def is_point_in_octagon_border(self, x, y, z):
         if z >= 4.5 or z <= 0.1:
             return False
-        # Create a Path object from hexagon points
-        path = mpath.Path(HEXAGON_LIMIT_FOR_WELLPLATE)
+        # Create a Path object from octagon points
+        path = mpath.Path(OCTAGON_LIMIT_FOR_WELLPLATE)
         
-        # Check if the point (x, y) is inside the hexagon
+        # Check if the point (x, y) is inside the octagon
         return path.contains_point((x, y))
     
     def move_x_to_safely(self, x):
         x_pos,y_pos, z_pos, *_ = self.navigationController.update_pos(microcontroller=self.microcontroller)
 
-        if self.is_point_in_hexagon_border(x, y_pos, z_pos):
+        if self.is_point_in_octagon_border(x, y_pos, z_pos):
             self.navigationController.move_x_to(x)
             while self.microcontroller.is_busy():
                 time.sleep(0.005)
@@ -268,7 +268,7 @@ class SquidController:
     def move_y_to_safely(self, y):
         x_pos,y_pos, z_pos, *_ = self.navigationController.update_pos(microcontroller=self.microcontroller)
 
-        if self.is_point_in_hexagon_border(x_pos, y, z_pos):
+        if self.is_point_in_octagon_border(x_pos, y, z_pos):
             self.navigationController.move_y_to(y)
             while self.microcontroller.is_busy():
                 time.sleep(0.005)
@@ -279,7 +279,7 @@ class SquidController:
     def move_z_to_safely(self, z):
         x_pos,y_pos, z_pos, *_ = self.navigationController.update_pos(microcontroller=self.microcontroller)
 
-        if self.is_point_in_hexagon_border(x_pos, y_pos, z):
+        if self.is_point_in_octagon_border(x_pos, y_pos, z):
             self.navigationController.move_z_to(z)
             while self.microcontroller.is_busy():
                 time.sleep(0.005)
@@ -291,7 +291,7 @@ class SquidController:
     def move_by_distance_safely(self, dx, dy, dz):
         x_pos,y_pos, z_pos, *_ = self.navigationController.update_pos(microcontroller=self.microcontroller)
 
-        if self.is_point_in_hexagon_border(x_pos+dx, y_pos+dy, z_pos+dz):
+        if self.is_point_in_octagon_border(x_pos+dx, y_pos+dy, z_pos+dz):
             self.navigationController.move_x(dx)
             while self.microcontroller.is_busy():
                 time.sleep(0.005)

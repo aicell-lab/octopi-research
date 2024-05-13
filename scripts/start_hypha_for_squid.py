@@ -573,12 +573,6 @@ async def setup():
 
 
 
-
-
-
-
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Squid microscope control services for Hypha."
