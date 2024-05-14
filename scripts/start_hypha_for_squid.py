@@ -131,21 +131,21 @@ def move_to_position(x,y,z, context=None):
     if x != 0:
         is_success, x_pos, y_pos,z_pos, x_des = squidController.move_x_to_safely(x)
         if not is_success:
-            result = f'The stage can not move to position ({x},{y},{z})mm from ({x_pos},{y_pos},{z_pos})mm because out of the limit of X Y axis.'
+            result = f'The stage can not move to position ({x},{y},{z})mm from ({x_pos},{y_pos},{z_pos})mm because out of the limit of X axis.'
             print(result)
             return(result)
             
     if y != 0:        
-        is_success, *_ = squidController.move_y_to_safely(y)
+        is_success, x_pos, y_pos, z_pos, y_des = squidController.move_y_to_safely(y)
         if not is_success:
-            result = f'The stage can not move to position ({x},{y},{z})mm from ({x_pos},{y_pos},{z_pos})mm because out of the limit of X Y axis.'
+            result = f'X axis moved successfully, the stage is now at ({x_pos},{y_pos},{z_pos})mm. But aimed position is out of the limit of Y axis and the stage can not move to position ({x},{y},{z})mm.'
             print(result)
             return(result)
             
     if z != 0:    
-        is_success,*_ = squidController.move_z_to_safely(z)
+        is_success, x_pos, y_pos, z_pos, z_des = squidController.move_z_to_safely(z)
         if not is_success:
-            result = f'The stage can not move to position ({x},{y},{z})mm from ({x_pos},{y_pos},{z_pos})mm because out of the limit of Z axis.'
+            result = f'X and Y axis moved successfully, the stage is now at ({x_pos},{y_pos},{z_pos})mm. But aimed position is out of the limit of Z axis and stage can not move to position ({x},{y},{z})mm.'
             print(result)
             return(result)
             
@@ -508,7 +508,9 @@ def move_to_position_schema(config):
     result = move_to_position(config["x"], config["y"], config["z"])
     return {"result": result}
 
-def move_by_distance_schema(config):
+def move_by_distance_schema(config, context=None):
+    if context['user']['email'] not in authorized_user_emails:
+        raise PermissionError("You are not authorized to move the stage.")
     print("Moving the stage by distance:", config)
     if config["x"] is None:
         config["x"] = 0
@@ -552,6 +554,7 @@ async def setup():
         "type": "bioimageio-chatbot-extension",
         "name": "Squid Microscope Control",
         "description": "Your role: A chatbot controlling a microscope; Your mission: Answering the user's questions, and executing the commands to control the microscope; Definition of microscope: OBJECTIVES: 20x 'NA':0.4, You have one main camera and one autofocus camera. ",
+        'config': {"visibility": "public", "require_context": True},
         "get_schema": get_schema,
         "tools": {
             "move_by_distance": move_by_distance_schema,
