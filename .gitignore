@@ -4,6 +4,7 @@ cache/
 chat_logs/
 docs/test.html
 logs/
+bioimageio_authorized_users.json
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
