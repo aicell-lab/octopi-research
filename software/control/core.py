@@ -43,8 +43,14 @@ import pandas as pd
 import imageio as iio
 
 import subprocess
-from control.robotic_arm_handler import move_sample_from_microscope_to_incubator
-from control.incubator_handler import put_sample_from_transfer_station_to_slot
+from control.utils_.robotic_arm_handler import (
+    move_sample_from_microscope_to_incubator,
+    move_sample_from_incubator_to_microscope
+)
+from control.utils_.incubator_handler import (
+    put_sample_from_transfer_station_to_slot,
+    get_sample_from_slot_to_transfer_station
+)
 
 
 class ObjectiveStore:
@@ -2366,6 +2372,8 @@ class MultiPointController(QObject):
             pass
         self.location_list = None # for flexible multipoint
 
+        self.first_scan = True
+
     def set_NX(self,N):
         self.NX = N
     def set_NY(self,N):
@@ -2484,6 +2492,10 @@ class MultiPointController(QObject):
             except:
                 pass
         
+        # Prepare for next scan if it's not the first scan
+        if not self.first_scan:
+            self.prepare_for_next_scan()
+
         # run the acquisition
         self.timestamp_acquisition_started = time.time()
 
@@ -2536,6 +2548,7 @@ class MultiPointController(QObject):
         self.multiPointWorker.finished.connect(self._on_acquisition_completed)
         self.multiPointWorker.finished.connect(self.multiPointWorker.deleteLater)
         self.multiPointWorker.finished.connect(self.thread.quit)
+        self.multiPointWorker.finished.connect(self._after_scan)
         self.multiPointWorker.image_to_display.connect(self.slot_image_to_display)
         self.multiPointWorker.image_to_display_multi.connect(self.slot_image_to_display_multi)
         self.multiPointWorker.image_to_display_tiled_preview.connect(self.slot_image_to_display_tiled_preview)
@@ -2549,24 +2562,71 @@ class MultiPointController(QObject):
         self.thread.finished.connect(self.thread.quit)
         # start the thread
         self.thread.start()
-
-        # Wait for the first scan to complete
-        self.thread.finished.connect(self._after_first_scan)
-
-    def _after_first_scan(self):
-        # Home the stage
-        self.navigationController.home()
-        self.wait_till_operation_is_completed()
-
-        # Move the sample from microscope to incubator
-        move_sample_from_microscope_to_incubator(timeout=60)
-
-        # Put the sample into the incubator slot
-        put_sample_from_transfer_station_to_slot(slot=5)
-
+    
     def wait_till_operation_is_completed(self):
         while self.microcontroller.is_busy():
             time.sleep(SLEEP_TIME_S)
+
+    def home_after_acquisition(self):
+        timestamp_start = time.time()
+        # x needs to be at > + 20 mm when homing y
+        self.navigationController.move_x(20) # to-do: add blocking code
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+        # home y
+        self.navigationController.home_y()
+        t0 = time.time()
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+            if time.time() - t0 > 10:
+                print('y homing timeout, the program will exit')
+                sys.exit(1)
+        self.navigationController.zero_y()
+        # home x
+        self.navigationController.home_x()
+        t0 = time.time()
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+            if time.time() - t0 > 10:
+                print('x homing timeout, the program will exit')
+                sys.exit(1)
+        self.navigationController.zero_x()
+        self.wait_till_operation_is_completed()
+        print('home_after_acquisition took', time.time() - timestamp_start, 'seconds')
+    
+    def _after_scan(self):
+        """Handles sample transfer after first scan completes"""
+        # Home the stage 
+        self.home_after_acquisition()
+
+        # Move the sample from microscope to incubator
+        move_sample_from_microscope_to_incubator(timeout=90)
+        
+        # Put the sample into the incubator slot
+        put_sample_from_transfer_station_to_slot(slot=5)
+
+        # Move microscope stage to safe position
+        self.navigationController.move_x_to(25)
+        self.navigationController.move_y_to(25)
+        self.wait_till_operation_is_completed()
+        self.first_scan = False
+
+    def prepare_for_next_scan(self):
+        """Prepare system for next scan by retrieving sample from incubator"""
+        # Home the stage
+        self.home_after_acquisition()
+        self.wait_till_operation_is_completed()
+
+        # Get sample from incubator slot to transfer station
+        get_sample_from_slot_to_transfer_station(slot=5)
+
+        # Move sample from incubator to microscope
+        move_sample_from_incubator_to_microscope(timeout=90)
+
+        # Move microscope stage to starting position
+        self.navigationController.move_x_to(25)
+        self.navigationController.move_y_to(25)
+        self.wait_till_operation_is_completed()
 
     def _on_acquisition_completed(self):
         # restore the previous selected mode
