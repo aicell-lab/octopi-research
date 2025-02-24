@@ -47,10 +47,10 @@ from control.utils_.robotic_arm_handler import (
     move_sample_from_microscope_to_incubator,
     move_sample_from_incubator_to_microscope
 )
-from control.utils_.incubator_handler import (
-    put_sample_from_transfer_station_to_slot,
-    get_sample_from_slot_to_transfer_station
-)
+# from control.utils_.incubator_handler import (
+#     put_sample_from_transfer_station_to_slot,
+#     get_sample_from_slot_to_transfer_station
+# )
 
 
 class ObjectiveStore:
@@ -1711,7 +1711,80 @@ class MultiPointWorker(QObject):
     def wait_till_operation_is_completed(self):
         while self.microcontroller.is_busy():
             time.sleep(SLEEP_TIME_S)
+    def wait_till_operation_is_completed(self):
+        while self.microcontroller.is_busy():
+            time.sleep(SLEEP_TIME_S)
 
+    def home_after_acquisition(self):
+        timestamp_start = time.time()
+        self.navigationController.home_z()
+        # wait for the operation to finish
+        t0 = time.time()
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+            if time.time() - t0 > 10:
+                print('z homing timeout, the program will exit')
+                sys.exit(1)
+        print('objective retracted')
+        # x needs to be at > + 20 mm when homing y
+        self.navigationController.move_x(20) # to-do: add blocking code
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+        # home y
+        self.navigationController.home_y()
+        t0 = time.time()
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+            if time.time() - t0 > 10:
+                print('y homing timeout, the program will exit')
+                sys.exit(1)
+        self.navigationController.zero_y()
+        # home x
+        self.navigationController.home_x()
+        t0 = time.time()
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+            if time.time() - t0 > 10:
+                print('x homing timeout, the program will exit')
+                sys.exit(1)
+        self.navigationController.zero_x()
+        self.wait_till_operation_is_completed()
+        print('home_after_acquisition took', time.time() - timestamp_start, 'seconds')
+    
+    def _after_scan(self):
+        """Handles sample transfer after first scan completes"""
+        # Home the stage 
+        self.home_after_acquisition()
+
+        # Move the sample from microscope to incubator
+        move_sample_from_microscope_to_incubator(timeout=190)
+        
+        # Put the sample into the incubator slot
+        #put_sample_from_transfer_station_to_slot(slot=5)
+
+        # Move microscope stage to safe position
+        self.navigationController.move_x_to(25)
+        self.navigationController.move_y_to(25)
+        self.wait_till_operation_is_completed()
+        self.first_scan = False
+
+    def prepare_for_next_scan(self):
+        """Prepare system for next scan by retrieving sample from incubator"""
+        # Home the stage
+        self.home_after_acquisition()
+        self.wait_till_operation_is_completed()
+
+        # Get sample from incubator slot to transfer station
+        #get_sample_from_slot_to_transfer_station(slot=5)
+
+        # Move sample from incubator to microscope
+        move_sample_from_incubator_to_microscope(timeout=190)
+
+        # Move microscope stage to starting position
+        self.navigationController.move_x_to(25)
+        self.navigationController.move_y_to(25)
+        self.wait_till_operation_is_completed()
+        
     def run_single_time_point(self):
         start = time.time()
         print(time.time())
@@ -1725,6 +1798,10 @@ class MultiPointWorker(QObject):
         os.mkdir(current_path)
 
         slide_path = os.path.join(self.base_path, self.experiment_ID)
+
+                # Prepare for next scan if it's not the first scan
+        if self.time_point > 0:
+            self.prepare_for_next_scan()
 
 
         # create a dataframe to save coordinates
@@ -2305,6 +2382,7 @@ class MultiPointWorker(QObject):
                     self.wait_till_operation_is_completed()
 
         # finished region scan
+        self._after_scan()
         self.coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
         self.navigationController.enable_joystick_button_action = True
         print(time.time())
@@ -2492,9 +2570,7 @@ class MultiPointController(QObject):
             except:
                 pass
         
-        # Prepare for next scan if it's not the first scan
-        if not self.first_scan:
-            self.prepare_for_next_scan()
+
 
         # run the acquisition
         self.timestamp_acquisition_started = time.time()
@@ -2548,7 +2624,7 @@ class MultiPointController(QObject):
         self.multiPointWorker.finished.connect(self._on_acquisition_completed)
         self.multiPointWorker.finished.connect(self.multiPointWorker.deleteLater)
         self.multiPointWorker.finished.connect(self.thread.quit)
-        self.multiPointWorker.finished.connect(self._after_scan)
+        #self.multiPointWorker.finished.connect(self._after_scan)
         self.multiPointWorker.image_to_display.connect(self.slot_image_to_display)
         self.multiPointWorker.image_to_display_multi.connect(self.slot_image_to_display_multi)
         self.multiPointWorker.image_to_display_tiled_preview.connect(self.slot_image_to_display_tiled_preview)
@@ -2563,70 +2639,6 @@ class MultiPointController(QObject):
         # start the thread
         self.thread.start()
     
-    def wait_till_operation_is_completed(self):
-        while self.microcontroller.is_busy():
-            time.sleep(SLEEP_TIME_S)
-
-    def home_after_acquisition(self):
-        timestamp_start = time.time()
-        # x needs to be at > + 20 mm when homing y
-        self.navigationController.move_x(20) # to-do: add blocking code
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-        # home y
-        self.navigationController.home_y()
-        t0 = time.time()
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-            if time.time() - t0 > 10:
-                print('y homing timeout, the program will exit')
-                sys.exit(1)
-        self.navigationController.zero_y()
-        # home x
-        self.navigationController.home_x()
-        t0 = time.time()
-        while self.microcontroller.is_busy():
-            time.sleep(0.005)
-            if time.time() - t0 > 10:
-                print('x homing timeout, the program will exit')
-                sys.exit(1)
-        self.navigationController.zero_x()
-        self.wait_till_operation_is_completed()
-        print('home_after_acquisition took', time.time() - timestamp_start, 'seconds')
-    
-    def _after_scan(self):
-        """Handles sample transfer after first scan completes"""
-        # Home the stage 
-        self.home_after_acquisition()
-
-        # Move the sample from microscope to incubator
-        move_sample_from_microscope_to_incubator(timeout=90)
-        
-        # Put the sample into the incubator slot
-        put_sample_from_transfer_station_to_slot(slot=5)
-
-        # Move microscope stage to safe position
-        self.navigationController.move_x_to(25)
-        self.navigationController.move_y_to(25)
-        self.wait_till_operation_is_completed()
-        self.first_scan = False
-
-    def prepare_for_next_scan(self):
-        """Prepare system for next scan by retrieving sample from incubator"""
-        # Home the stage
-        self.home_after_acquisition()
-        self.wait_till_operation_is_completed()
-
-        # Get sample from incubator slot to transfer station
-        get_sample_from_slot_to_transfer_station(slot=5)
-
-        # Move sample from incubator to microscope
-        move_sample_from_incubator_to_microscope(timeout=90)
-
-        # Move microscope stage to starting position
-        self.navigationController.move_x_to(25)
-        self.navigationController.move_y_to(25)
-        self.wait_till_operation_is_completed()
 
     def _on_acquisition_completed(self):
         # restore the previous selected mode
@@ -3729,15 +3741,6 @@ class LaserAutofocusController(QObject):
         self.spot_spacing_pixels = None # spacing between the spots from the two interfaces (unit: pixel)
         
         self.look_for_cache = look_for_cache
-
-        self.image = None # for saving the focus camera image for debugging when centroid cannot be found
-
-
-        self.image = None # for saving the focus camera image for debugging when centroid cannot be found
-
-self.image = None # for saving the focus camera image for debugging when centroid cannot be found
-
-        self.image = None # for saving the focus camera image for debugging when centroid cannot be found
 
         self.image = None # for saving the focus camera image for debugging when centroid cannot be found
         if look_for_cache:
