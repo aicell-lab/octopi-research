@@ -14,12 +14,15 @@ def wait_until_not_busy(timeout=50):
         if timeout == 0:
             raise TimeoutError("Timeout reached")
 
-
-def put_sample_from_transfer_station_to_slot(slot=5):
+def send_initialize_command_incubator():
     server = connect_to_server({"server_url": server_url})
     svc = server.get_service(service_id)
     wait_until_not_busy(timeout=50)
     svc.initialize()
+
+def put_sample_from_transfer_station_to_slot(slot=5):
+    server = connect_to_server({"server_url": server_url})
+    svc = server.get_service(service_id)
     wait_until_not_busy(timeout=50)
     svc.put_sample_from_transfer_station_to_slot(slot)
     wait_until_not_busy(timeout=50)
@@ -27,8 +30,6 @@ def put_sample_from_transfer_station_to_slot(slot=5):
 def get_sample_from_slot_to_transfer_station(slot=5):
     server = connect_to_server({"server_url": server_url})
     svc = server.get_service(service_id)
-    wait_until_not_busy(timeout=50)
-    svc.initialize()
     wait_until_not_busy(timeout=50)
     svc.get_sample_from_slot_to_transfer_station(slot)
     wait_until_not_busy(timeout=50)

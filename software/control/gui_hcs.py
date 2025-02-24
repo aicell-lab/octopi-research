@@ -226,10 +226,13 @@ class OctopiGUI(QMainWindow):
         self.navigationController.set_z_limit_pos_mm(SOFTWARE_POS_LIMIT.Z_POSITIVE)
 
         # move to scanning position
-        self.navigationController.move_x(20)
+        self.navigationController.move_x(25)
         while self.microcontroller.is_busy():
             time.sleep(0.005)
-        self.navigationController.move_y(20)
+        self.navigationController.move_y(25)
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+        self.navigationController.move_z(1)
         while self.microcontroller.is_busy():
             time.sleep(0.005)
 

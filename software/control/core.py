@@ -47,10 +47,11 @@ from control.utils_.robotic_arm_handler import (
     move_sample_from_microscope_to_incubator,
     move_sample_from_incubator_to_microscope
 )
-# from control.utils_.incubator_handler import (
-#     put_sample_from_transfer_station_to_slot,
-#     get_sample_from_slot_to_transfer_station
-# )
+from control.utils_.incubator_handler import (
+    put_sample_from_transfer_station_to_slot,
+    get_sample_from_slot_to_transfer_station,
+    send_initialize_command_incubator
+)
 
 
 class ObjectiveStore:
@@ -1754,40 +1755,61 @@ class MultiPointWorker(QObject):
     def _after_scan(self):
         """Handles sample transfer after first scan completes"""
         # Home the stage 
+        print('Homing stage')
         self.home_after_acquisition()
-
+        print('Stage homed')
+        print('Transporting sample to incubator')
+        # Initialize incubator without waiting for completion
+        send_initialize_command_incubator()
         # Move the sample from microscope to incubator
         move_sample_from_microscope_to_incubator(timeout=190)
+        print('Sample moved to incubator')
         
         # Put the sample into the incubator slot
-        #put_sample_from_transfer_station_to_slot(slot=5)
+        print('Putting sample into incubator slot')
+        put_sample_from_transfer_station_to_slot(slot=5)
+        print('Sample put into incubator slot')
 
         # Move microscope stage to safe position
         self.navigationController.move_x_to(25)
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
         self.navigationController.move_y_to(25)
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+        self.navigationController.move_z(1)
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
         self.wait_till_operation_is_completed()
         self.first_scan = False
 
     def prepare_for_next_scan(self):
         """Prepare system for next scan by retrieving sample from incubator"""
+        send_initialize_command_incubator()
         # Home the stage
         self.home_after_acquisition()
         self.wait_till_operation_is_completed()
 
         # Get sample from incubator slot to transfer station
-        #get_sample_from_slot_to_transfer_station(slot=5)
+        get_sample_from_slot_to_transfer_station(slot=5)
 
         # Move sample from incubator to microscope
         move_sample_from_incubator_to_microscope(timeout=190)
 
         # Move microscope stage to starting position
         self.navigationController.move_x_to(25)
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
         self.navigationController.move_y_to(25)
         self.wait_till_operation_is_completed()
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
+        self.navigationController.move_z(1)
+        while self.microcontroller.is_busy():
+            time.sleep(0.005)
         
     def run_single_time_point(self):
-        start = time.time()
-        print(time.time())
+
         # disable joystick button action
         self.navigationController.enable_joystick_button_action = False
 
@@ -1803,7 +1825,8 @@ class MultiPointWorker(QObject):
         if self.time_point > 0:
             self.prepare_for_next_scan()
 
-
+        start = time.time()
+        print(time.time())
         # create a dataframe to save coordinates
         if IS_HCS:
             if self.use_piezo:
@@ -2380,13 +2403,15 @@ class MultiPointWorker(QObject):
                 else:
                     self.navigationController.microcontroller.move_z_to_usteps(z_pos)
                     self.wait_till_operation_is_completed()
-
+       
+       
         # finished region scan
-        self._after_scan()
         self.coordinates_pd.to_csv(os.path.join(current_path,'coordinates.csv'),index=False,header=True)
         self.navigationController.enable_joystick_button_action = True
         print(time.time())
         print(time.time()-start)
+        print('finished scan, start homing')
+        self._after_scan()
 
 class MultiPointController(QObject):
 
