@@ -3,7 +3,7 @@ import asyncio
 from hypha_rpc.sync import connect_to_server
 
 server_url = "http://192.168.2.1:9527"
-service_id = "ws-user-wonderful-ring-09946870/Gqm6TNdfFGYVp3vDfSfp5c:incubator-control"
+service_id = "ws-user-pine-bumper-79360175/izm2rHYVhXeUqPDcateLHt:incubator-control"
 def wait_until_not_busy(timeout=50):
     server = connect_to_server({"server_url": server_url})
     svc = server.get_service(service_id)
