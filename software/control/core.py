@@ -1724,9 +1724,10 @@ class MultiPointWorker(QObject):
         while self.microcontroller.is_busy():
             time.sleep(0.005)
             if time.time() - t0 > 10:
-                print('z homing timeout, the program will exit')
+                print('z moving to 0.07mm timeout, the program will exit')
                 sys.exit(1)
         print('objective retracted')
+        self.navigationController.zero_z()
         # x needs to be at > + 20 mm when homing y
         self.navigationController.move_x(20) # to-do: add blocking code
         while self.microcontroller.is_busy():
